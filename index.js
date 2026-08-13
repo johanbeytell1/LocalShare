@@ -36,6 +36,160 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearFilesBtn = document.getElementById("clear-files-btn");
     const rescanBtn = document.getElementById("rescan-btn");
 
+    // ───────────────────────────────────────────────
+// Random Primary Color
+// ───────────────────────────────────────────────
+const LS_PRIMARY_COLOR = (() => {
+  const h = Math.floor(Math.random() * 360);
+  const s = 88 + Math.random() * 12;
+  const l = 56 + Math.random() * 10;
+
+  const hslToHex = (h, s, l) => {
+    s /= 100;
+    l /= 100;
+
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+
+    const f = n =>
+      l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+    const toHex = x => Math.round(255 * x).toString(16).padStart(2, "0");
+
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  };
+
+  return hslToHex(h, s, l);
+})();
+
+document.documentElement.style.setProperty("--color-primary", LS_PRIMARY_COLOR);
+
+let themeMeta = document.querySelector('meta[name="theme-color"]');
+if (!themeMeta) {
+  themeMeta = document.createElement("meta");
+  themeMeta.name = "theme-color";
+  document.head.appendChild(themeMeta);
+}
+themeMeta.content = LS_PRIMARY_COLOR;
+
+
+// ───────────────────────────────────────────────
+// Custom Icon Engine
+// ───────────────────────────────────────────────
+const LS_ICON_MAP = {
+  "bi-lightning-charge-fill": "bolt",
+  "bi-github": "github",
+  "bi-cpu": "cpu",
+  "bi-radar": "radar",
+  "bi-link-45deg": "link",
+  "bi-plug": "plug",
+  "bi-arrow-clockwise": "refresh",
+  "bi-cloud-arrow-up": "cloud-up",
+  "bi-send-fill": "send",
+  "bi-send": "send",
+  "bi-box-arrow-up": "upload",
+  "bi-box-arrow-in-down": "download-box",
+  "bi-people": "users",
+  "bi-person-plus": "users",
+  "bi-chat-dots": "chat",
+  "bi-clipboard": "copy",
+  "bi-copy": "copy",
+  "bi-laptop": "laptop",
+  "bi-x-lg": "close",
+  "bi-x": "close",
+  "bi-trash": "trash",
+  "bi-download": "download",
+  "bi-hourglass-split": "hourglass",
+  "bi-check-circle": "check",
+  "bi-check2": "check",
+  "bi-info-circle": "info",
+  "bi-exclamation-triangle": "warning",
+  "bi-exclamation-circle": "error",
+  "bi-file-earmark": "file",
+  "bi-file-earmark-text": "file-text",
+  "bi-file-earmark-pdf": "file-pdf",
+  "bi-file-earmark-word": "file-doc",
+  "bi-file-earmark-excel": "file-sheet",
+  "bi-file-earmark-spreadsheet": "file-sheet",
+  "bi-file-earmark-ppt": "file-slides",
+  "bi-file-earmark-image": "file-image",
+  "bi-file-earmark-music": "file-audio",
+  "bi-file-earmark-play": "file-video",
+  "bi-file-earmark-zip": "file-archive",
+  "bi-file-earmark-code": "file-code",
+  "bi-android": "file-app",
+  "bi-windows": "file-app",
+  "bi-apple": "file-app"
+};
+
+function upgradeIconElement(el) {
+  if (!el || el.nodeType !== 1) return;
+  if (el.hasAttribute("data-ls-icon-upgraded")) return;
+
+  const customIcon = el.getAttribute("data-ls-icon");
+  const bootstrapClass = Array.from(el.classList || []).find(
+    cls => LS_ICON_MAP[cls]
+  );
+
+  const iconName = customIcon || (bootstrapClass ? LS_ICON_MAP[bootstrapClass] : null);
+  if (!iconName) return;
+
+  if (!document.getElementById(`lsi-${iconName}`)) return;
+
+  const cleanClass =
+    (typeof el.className === "string" ? el.className : "")
+      .replace(/\bbi\b|\bbi-[\w-]+/g, "")
+      .trim();
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", `ls-icon ${cleanClass}`);
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  svg.setAttribute("data-ls-icon-upgraded", "true");
+
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#lsi-${iconName}`);
+  use.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `#lsi-${iconName}`);
+
+  svg.appendChild(use);
+
+  for (const attr of el.attributes) {
+    if (attr.name === "class" || attr.name === "data-ls-icon") continue;
+    svg.setAttribute(attr.name, attr.value);
+  }
+
+  el.replaceWith(svg);
+}
+
+function upgradeIcons(root = document) {
+  root
+    .querySelectorAll("i.bi, [data-ls-icon]")
+    .forEach(upgradeIconElement);
+}
+
+const iconObserver = new MutationObserver(mutations => {
+  for (const mutation of mutations) {
+    mutation.addedNodes.forEach(node => {
+      if (node.nodeType !== 1) return;
+
+      if (node.matches && node.matches("i.bi, [data-ls-icon]")) {
+        upgradeIconElement(node);
+      }
+
+      if (node.querySelectorAll) {
+        upgradeIcons(node);
+      }
+    });
+  }
+});
+
+iconObserver.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
+upgradeIcons();
+
     // ═══════════════════════════════════════════
     // State
     // ═══════════════════════════════════════════
@@ -290,14 +444,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function displayQrCode(id) {
-        try {
-            QRCode.toCanvas(qrCodeCanvas, id, {
-                width: 130, margin: 1,
-                color: { dark: "#00E5FF", light: "#000000" }
-            });
-            qrCodeContainer.classList.remove("hidden");
-        } catch (e) { console.warn("QR render failed", e); }
-    }
+  if (!qrCodeCanvas || !qrCodeContainer) return;
+
+  if (typeof QRCode === "undefined") {
+    qrCodeContainer.hidden = false;
+    qrCodeContainer.classList.remove("hidden");
+    qrCodeContainer.innerHTML = `
+      <p class="text-[10px] text-text/40">
+        QR library unavailable. Peer ID: ${id}
+      </p>
+    `;
+    return;
+  }
+
+  try {
+    qrCodeContainer.hidden = false;
+    qrCodeContainer.classList.remove("hidden");
+
+    QRCode.toCanvas(qrCodeCanvas, id, {
+      width: 150,
+      margin: 1,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: LS_PRIMARY_COLOR,
+        light: "#000000"
+      }
+    });
+  } catch (err) {
+    console.warn("QR render failed:", err);
+  }
+}
 
     function updateDiscoveryStatus(text) {
         const el = document.getElementById("discovery-status");

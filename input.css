@@ -1,394 +1,938 @@
 @import "tailwindcss";
 
 @theme {
-    --color-background: #000000;
-    --color-text: #F5F5F7;
-    --color-primary: #00E5FF;
-    --color-secondary: #FFD43B;
-    --color-accent: #00FFA3;
-    --color-surface: #0A0A0A;
-    --color-panel-border: rgba(255, 255, 255, 0.06);
+  --color-background: #000000;
+  --color-text: #F5F5F7;
+  --color-primary: #00E5FF;
+  --color-secondary: #FFD43B;
+  --color-accent: #00FFA3;
+  --color-surface: #050505;
+  --color-panel-border: rgba(255, 255, 255, 0.07);
 }
 
 @layer base {
-    * {
-        border-color: rgb(255 255 255 / 0.08);
-        scrollbar-width: thin;
-        scrollbar-color: rgb(0 229 255 / 0.25) transparent;
-    }
+  html,
+  body {
+    min-height: 100%;
+  }
 
-    body {
-        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background-color: var(--color-background);
-        color: var(--color-text);
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
+  body {
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-    ::selection {
-        background-color: rgb(0 229 255 / 0.16);
-        color: #ffffff;
-    }
+  main {
+    flex: 1 0 auto;
+    width: 100%;
+  }
+
+  footer {
+    flex-shrink: 0;
+  }
+
+  * {
+    border-color: rgb(255 255 255 / 0.08);
+    scrollbar-width: thin;
+    scrollbar-color: rgb(0 229 255 / 0.25) transparent;
+    scrollbar-color: color-mix(in srgb, var(--color-primary) 30%, transparent) transparent;
+  }
+
+  ::selection {
+    background-color: rgb(0 229 255 / 0.16);
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    color: #ffffff;
+  }
+
+  .grid > * {
+    min-width: 0;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    max-width: 100%;
+  }
+
+  code,
+  .peer-id,
+  #peer-id-input {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }
 
 @layer components {
-    /* ─── Navigation ─── */
-    .site-nav {
-        background-color: rgb(0 0 0 / 0.8);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-    }
+  /* ─── Custom Icon System ─── */
+  .ls-sprite {
+    display: none;
+  }
 
-    /* ─── Panels ─── */
+  .ls-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: -0.125em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    flex: none;
+    pointer-events: none;
+  }
+
+  /* ─── Navigation ─── */
+  .site-nav {
+    background-color: rgb(0 0 0 / 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 0;
+  }
+
+  /* ─── Panels ─── */
+  .panel {
+    background-color: var(--color-surface);
+    border: 1px solid rgb(255 255 255 / 0.07);
+    border-radius: 0;
+    padding: 0.875rem;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
+  }
+
+  @media (min-width: 640px) {
     .panel {
-        background-color: var(--color-surface);
-        border: 1px solid rgb(255 255 255 / 0.06);
-        border-radius: 1rem;
-        padding: 1.25rem;
-        box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+      padding: 1rem;
+    }
+  }
+
+  .panel-heading,
+  .panel > h2 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgb(245 245 247 / 0.5);
+    margin: 0;
+  }
+
+  /* ─── Legacy support ─── */
+  .glass {
+    background-color: rgb(255 255 255 / 0.04);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 0;
+  }
+
+  .layout-grid {
+    padding-top: 1rem;
+  }
+
+  .saaS-heading {
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* ─── Status Dots ─── */
+  .status-dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 9999px;
+    background-color: rgb(245 245 247 / 0.2);
+  }
+
+  .status-dot.online {
+    background-color: var(--color-accent);
+    box-shadow: 0 0 10px rgb(0 255 163 / 0.45);
+  }
+
+  .status-dot.offline {
+    background-color: #f87171;
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary,
+  .btn-primary-sm,
+  .btn-connect-sm,
+  .icon-btn-primary,
+  .outlined-btn {
+    border-radius: 0;
+    color: var(--color-primary);
+    background-color: rgb(0 229 255 / 0.1);
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    border: 1px solid rgb(0 229 255 / 0.25);
+    border-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover,
+  .btn-primary-sm:hover,
+  .btn-connect-sm:hover,
+  .icon-btn-primary:hover,
+  .outlined-btn:hover {
+    background-color: rgb(0 229 255 / 0.18);
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border-color: rgb(0 229 255 / 0.4);
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+
+  .btn-primary,
+  .btn-ghost,
+  .outlined-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+  }
+
+  .btn-primary-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.875rem;
+  }
+
+  .btn-ghost {
+    color: rgb(245 245 247 / 0.7);
+    background-color: rgb(255 255 255 / 0.05);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0;
+    transition: all 0.2s ease;
+  }
+
+  .btn-ghost:hover {
+    background-color: rgb(255 255 255 / 0.1);
+    color: #ffffff;
+  }
+
+  .btn-connect-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 0.375rem 0.625rem;
+  }
+
+  .btn-connect-sm:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .icon-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    background-color: rgb(255 255 255 / 0.05);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    color: rgb(245 245 247 / 0.5);
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+  }
+
+  .icon-btn:hover {
+    color: #ffffff;
+    background-color: rgb(255 255 255 / 0.1);
+  }
+
+  .icon-btn-primary {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+  }
+
+  /* ─── Inputs ─── */
+  .input-field {
+    background-color: rgb(255 255 255 / 0.05);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0;
+    padding: 0.5rem 0.75rem;
+    color: rgb(245 245 247 / 0.9);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Keep the chat controls inline when they fit; wrap the button otherwise. */
+  .chat-input-row #chat-input {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+
+  .chat-input-row #chat-send {
+    flex: 0 0 auto;
+  }
+
+  .input-field::placeholder {
+    color: rgb(245 245 247 / 0.3);
+  }
+
+  .input-field:focus {
+    border-color: rgb(0 229 255 / 0.4);
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+    box-shadow: 0 0 0 3px rgb(0 229 255 / 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+
+  /* ─── Manual Connect responsive fix ─── */
+  .manual-connect-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .manual-connect-input {
+    min-width: 0;
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .manual-connect-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .manual-connect-form {
+      flex-direction: column;
+      align-items: stretch;
     }
 
-    .panel-heading {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: rgb(245 245 247 / 0.5);
+    .manual-connect-button {
+      width: 100%;
     }
 
-    /* ─── Status Dots ─── */
-    .status-dot {
-        width: 0.625rem;
-        height: 0.625rem;
-        border-radius: 9999px;
-        background-color: rgb(245 245 247 / 0.2);
+    #peer-id-input {
+      font-size: 11px;
     }
+  }
 
-    .status-dot.online {
-        background-color: var(--color-accent);
-        box-shadow: 0 0 10px rgb(0 255 163 / 0.45);
-    }
+  /* ─── Cards ─── */
+  .connection-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0;
+    background-color: rgb(255 255 255 / 0.03);
+    border: 1px solid rgb(255 255 255 / 0.06);
+    transition: all 0.2s ease;
+  }
 
-    .status-dot.offline {
-        background-color: #f87171;
-    }
+  .connection-card:hover {
+    border-color: rgb(0 229 255 / 0.2);
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    background-color: rgb(255 255 255 / 0.05);
+  }
 
-    /* ─── Buttons ─── */
-    .btn-primary {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        border-radius: 0.75rem;
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-primary);
-        background-color: rgb(0 229 255 / 0.1);
-        border: 1px solid rgb(0 229 255 / 0.25);
-        padding: 0.625rem 1.25rem;
-        transition: all 0.2s ease;
-    }
+  .connection-card .peer-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(0 229 255 / 0.08);
+    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border: 1px solid rgb(0 229 255 / 0.12);
+    border-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    border-radius: 0;
+  }
 
-    .btn-primary:hover {
-        background-color: rgb(0 229 255 / 0.18);
-        border-color: rgb(0 229 255 / 0.4);
-        transform: translateY(-1px);
-    }
+  .peer-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+  }
 
-    .btn-primary:active {
-        transform: translateY(0);
-    }
+  .peer-id {
+    font-size: 10px;
+    color: rgb(245 245 247 / 0.35);
+    word-break: break-all;
+  }
 
-    .btn-primary-sm {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        font-size: 0.75rem;
-        color: var(--color-primary);
-        background-color: rgb(0 229 255 / 0.1);
-        border: 1px solid rgb(0 229 255 / 0.25);
-        padding: 0.5rem 0.875rem;
-        transition: all 0.2s ease;
-    }
+  .transfer-card {
+    padding: 0.75rem;
+    border-radius: 0;
+    background-color: rgb(255 255 255 / 0.03);
+    border: 1px solid rgb(255 255 255 / 0.06);
+  }
 
-    .btn-primary-sm:hover {
-        background-color: rgb(0 229 255 / 0.18);
-        border-color: rgb(0 229 255 / 0.4);
-    }
+  /* ─── Progress ─── */
+  .progress-track,
+  .track {
+    height: 4px;
+    width: 100%;
+    border-radius: 0;
+    background-color: rgb(255 255 255 / 0.08);
+    overflow: hidden;
+  }
 
-    .btn-ghost {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        border-radius: 0.75rem;
-        font-weight: 500;
-        font-size: 0.875rem;
-        color: rgb(245 245 247 / 0.7);
-        background-color: rgb(255 255 255 / 0.05);
-        border: 1px solid rgb(255 255 255 / 0.1);
-        padding: 0.625rem 1.25rem;
-        transition: all 0.2s ease;
-    }
+  .progress-fill,
+  .track > div {
+    height: 100%;
+    border-radius: 0;
+    transition: width 0.2s ease-out;
+  }
 
-    .btn-ghost:hover {
-        background-color: rgb(255 255 255 / 0.1);
-        color: #ffffff;
-    }
+  .progress-fill {
+    width: 0%;
+    background-color: var(--color-primary);
+  }
 
-    .btn-connect-sm {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        border-radius: 0.5rem;
-        font-size: 10px;
-        font-weight: 700;
-        white-space: nowrap;
-        color: var(--color-primary);
-        background-color: rgb(0 229 255 / 0.1);
-        border: 1px solid rgb(0 229 255 / 0.2);
-        padding: 0.375rem 0.625rem;
-        transition: all 0.15s ease;
-    }
+  .progress-fill.bg-accent,
+  .track .bg-accent {
+    background-color: var(--color-accent);
+  }
 
-    .btn-connect-sm:hover {
-        background-color: rgb(0 229 255 / 0.18);
-    }
+  /* ─── Drop Zone ─── */
+  .drop-zone {
+    position: relative;
+    border: 2px dashed rgb(255 255 255 / 0.1);
+    border-radius: 0;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
 
-    .btn-connect-sm:disabled {
-        opacity: 0.4;
-        pointer-events: none;
-    }
+  .drop-zone:hover {
+    border-color: rgb(0 229 255 / 0.3);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background-color: rgb(0 229 255 / 0.03);
+    background-color: color-mix(in srgb, var(--color-primary) 3%, transparent);
+  }
 
-    .icon-btn {
-        width: 1.75rem;
-        height: 1.75rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 0.5rem;
-        background-color: rgb(255 255 255 / 0.05);
-        border: 1px solid rgb(255 255 255 / 0.08);
-        color: rgb(245 245 247 / 0.5);
-        font-size: 0.75rem;
-        transition: all 0.15s ease;
-    }
+  .drop-zone.drag-over {
+    border-color: rgb(0 229 255 / 0.5);
+    border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+    background-color: rgb(0 229 255 / 0.05);
+    background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+    transform: scale(1.01);
+  }
 
-    .icon-btn:hover {
-        color: #ffffff;
-        background-color: rgb(255 255 255 / 0.1);
-    }
+  .drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    pointer-events: none;
+  }
 
-    .icon-btn-primary {
-        width: 2rem;
-        height: 2rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 0.5rem;
-        background-color: rgb(0 229 255 / 0.1);
-        border: 1px solid rgb(0 229 255 / 0.25);
-        color: var(--color-primary);
-        font-size: 0.875rem;
-        transition: all 0.15s ease;
-    }
+  /* ─── Modal ─── */
+  .modal-card {
+    background-color: var(--color-surface);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 0;
+    padding: 1.5rem;
+    box-shadow: 0 24px 80px rgb(0 0 0 / 0.55);
+    animation: modal-pop 0.2s ease-out;
+  }
 
-    .icon-btn-primary:hover {
-        background-color: rgb(0 229 255 / 0.18);
-    }
+  /* ─── Toast ─── */
+  .toast-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    background-color: rgb(10 10 10 / 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
+    opacity: 0;
+    transform: translateX(1rem);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
 
-    /* ─── Inputs ─── */
-    .input-field {
-        background-color: rgb(255 255 255 / 0.05);
-        border: 1px solid rgb(255 255 255 / 0.1);
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-        color: rgb(245 245 247 / 0.9);
-        outline: none;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
+  .toast-item.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
 
-    .input-field::placeholder {
-        color: rgb(245 245 247 / 0.3);
-    }
+  /* ─── Scrollbar ─── */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
 
-    .input-field:focus {
-        border-color: rgb(0 229 255 / 0.4);
-        box-shadow: 0 0 0 3px rgb(0 229 255 / 0.12);
-    }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
 
-    /* ─── Cards ─── */
-    .connection-card {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.75rem;
-        border-radius: 0.75rem;
-        background-color: rgb(255 255 255 / 0.03);
-        border: 1px solid rgb(255 255 255 / 0.06);
-        transition: all 0.2s ease;
-    }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: rgb(0 229 255 / 0.15);
+    background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
 
-    .connection-card:hover {
-        border-color: rgb(0 229 255 / 0.2);
-        background-color: rgb(255 255 255 / 0.05);
-    }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(0 229 255 / 0.3);
+    background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
 
-    .transfer-card {
-        padding: 0.875rem;
-        border-radius: 0.75rem;
-        background-color: rgb(255 255 255 / 0.03);
-        border: 1px solid rgb(255 255 255 / 0.06);
-    }
+  /* ─── QR Code ─── */
+  #qr-code-container:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
-    /* ─── Progress ─── */
-    .progress-track {
-        height: 0.375rem;
-        width: 100%;
-        border-radius: 9999px;
-        background-color: rgb(255 255 255 / 0.08);
-        overflow: hidden;
-    }
+  #peer-id-qr-code {
+    width: 150px;
+    height: 150px;
+    border-radius: 0;
+    border: 1px solid rgb(0 229 255 / 0.15);
+    border-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    padding: 0.5rem;
+    background-color: #000000;
+    image-rendering: pixelated;
+  }
 
-    .progress-fill {
-        height: 100%;
-        width: 0%;
-        border-radius: 9999px;
-        background-color: var(--color-primary);
-        transition: width 0.2s ease-out;
-    }
+  /* ─── Extra Effects ─── */
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+}
 
-    .progress-fill.bg-accent {
-        background-color: var(--color-accent);
-    }
+/* ─── Structural Square Overrides ─── */
+:where(
+  .panel,
+  .btn-primary,
+  .btn-primary-sm,
+  .btn-ghost,
+  .btn-connect-sm,
+  .icon-btn,
+  .icon-btn-primary,
+  .input-field,
+  .connection-card,
+  .transfer-card,
+  .toast-item,
+  .modal-card,
+  .drop-zone,
+  #peer-id-qr-code,
+  .progress-track,
+  .progress-fill,
+  .track,
+  .site-nav,
+  .connection-card .peer-icon,
+  .outlined-btn
+) {
+  border-radius: 0;
+}
 
-    /* ─── Drop Zone ─── */
-    .drop-zone {
-        position: relative;
-        border: 2px dashed rgb(255 255 255 / 0.1);
-        border-radius: 1rem;
-        padding: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    }
-
-    .drop-zone:hover {
-        border-color: rgb(0 229 255 / 0.3);
-        background-color: rgb(0 229 255 / 0.03);
-    }
-
-    .drop-zone.drag-over {
-        border-color: rgb(0 229 255 / 0.5);
-        background-color: rgb(0 229 255 / 0.05);
-        transform: scale(1.01);
-    }
-
-    .drop-zone-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        pointer-events: none;
-    }
-
-    /* ─── Modal ─── */
-    .modal-card {
-        background-color: var(--color-surface);
-        border: 1px solid rgb(255 255 255 / 0.1);
-        border-radius: 1rem;
-        padding: 1.5rem;
-        box-shadow: 0 24px 80px rgb(0 0 0 / 0.55);
-        animation: modal-pop 0.2s ease-out;
-    }
-
-    /* ─── Toast ─── */
-    .toast-item {
-        display: flex;
-        align-items: center;
-        gap: 0.625rem;
-        padding: 0.75rem 1rem;
-        border-radius: 0.75rem;
-        border: 1px solid rgb(255 255 255 / 0.1);
-        background-color: rgb(10 10 10 / 0.95);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        font-size: 12px;
-        font-weight: 500;
-        box-shadow: 0 16px 48px rgb(0 0 0 / 0.45);
-        opacity: 0;
-        transform: translateX(1rem);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    .toast-item.show {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    /* ─── Scrollbar ─── */
-    .scrollbar-thin::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-    }
-
-    .scrollbar-thin::-webkit-scrollbar-track {
-        background-color: transparent;
-    }
-
-    .scrollbar-thin::-webkit-scrollbar-thumb {
-        border-radius: 9999px;
-        background-color: rgb(0 229 255 / 0.15);
-    }
-
-    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-        background-color: rgb(0 229 255 / 0.3);
-    }
-
-    /* ─── QR Code ─── */
-    #qr-code-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    #peer-id-qr-code {
-        border-radius: 0.75rem;
-        border: 1px solid rgb(0 229 255 / 0.15);
-        padding: 0.75rem;
-        background-color: #000000;
-    }
-
-    /* ─── Extra Effects ─── */
-    .animate-pulse-glow {
-        animation: pulse-glow 3s ease-in-out infinite;
-    }
+/* Force Tailwind rounded utilities to square, except circular dots/badges */
+:where(
+  .rounded,
+  .rounded-sm,
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-3xl
+):not(.rounded-full):not(.status-dot):not(.ls-icon) {
+  border-radius: 0 !important;
 }
 
 @keyframes modal-pop {
-    from {
-        opacity: 0;
-        transform: scale(0.96) translateY(8px);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @keyframes pulse-glow {
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgb(0 229 255 / 0.2);
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(0 229 255 / 0.2);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 12px 2px rgb(0 229 255 / 0.15);
+    box-shadow: 0 0 12px 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+}
+
+/* =========================================================
+   LocalShare Readability Boost
+   Improves text size, contrast, and desktop visibility
+   ========================================================= */
+
+html {
+    font-size: 16px;
+}
+
+@media (min-width: 1280px) {
+    html {
+        font-size: 17px;
+    }
+}
+
+@media (min-width: 1600px) {
+    html {
+        font-size: 18px;
+    }
+}
+
+body {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+}
+
+/* Improve low-contrast text utilities */
+.text-text\/20,
+.text-text\/30,
+.text-text\/40 {
+    color: rgb(245 245 247 / 0.74) !important;
+}
+
+.text-text\/50 {
+    color: rgb(245 245 247 / 0.80) !important;
+}
+
+.text-text\/60 {
+    color: rgb(245 245 247 / 0.86) !important;
+}
+
+.text-text\/70 {
+    color: rgb(245 245 247 / 0.90) !important;
+}
+
+/* Force tiny arbitrary Tailwind font sizes to be more readable */
+.text-\[9px\],
+.text-\[10px\] {
+    font-size: 0.75rem !important;
+    line-height: 1.35 !important;
+}
+
+.text-\[11px\] {
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+}
+
+.text-\[12px\] {
+    font-size: 0.875rem !important;
+    line-height: 1.45 !important;
+}
+
+.text-\[13px\] {
+    font-size: 0.9375rem !important;
+    line-height: 1.45 !important;
+}
+
+/* Improve standard Tailwind text sizes */
+.text-xs {
+    font-size: 0.8125rem !important;
+    line-height: 1.45 !important;
+}
+
+.text-sm {
+    font-size: 0.9375rem !important;
+    line-height: 1.5 !important;
+}
+
+.text-base {
+    font-size: 1.0625rem !important;
+    line-height: 1.5 !important;
+}
+
+.text-lg {
+    font-size: 1.25rem !important;
+    line-height: 1.4 !important;
+}
+
+.text-xl {
+    font-size: 1.5rem !important;
+    line-height: 1.35 !important;
+}
+
+/* Panels */
+.panel {
+    padding: 1.1rem;
+}
+
+@media (min-width: 1024px) {
+    .panel {
+        padding: 1.35rem;
+    }
+}
+
+.panel-heading,
+.panel > h2 {
+    font-size: 0.8125rem !important;
+    line-height: 1.4;
+    letter-spacing: 0.08em;
+    color: rgb(245 245 247 / 0.72) !important;
+    margin-bottom: 1rem;
+}
+
+/* Device/status section */
+#status .text-lg {
+    font-size: 1.35rem !important;
+    line-height: 1.3;
+}
+
+#status code {
+    font-size: 0.8125rem !important;
+    line-height: 1.45;
+    padding: 0.35rem 0.5rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#discovery-status {
+    font-size: 0.8125rem !important;
+    line-height: 1.45;
+    color: rgb(245 245 247 / 0.72) !important;
+}
+
+/* Peer cards */
+.peer-name {
+    font-size: 0.95rem !important;
+    line-height: 1.35;
+    color: #ffffff !important;
+}
+
+.peer-id {
+    font-size: 0.75rem !important;
+    line-height: 1.5;
+    color: rgb(245 245 247 / 0.62) !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.connection-card {
+    padding: 0.8rem 0.9rem !important;
+}
+
+.connection-card .peer-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+}
+
+.connection-card .peer-icon .ls-icon,
+.connection-card .peer-icon i {
+    font-size: 1.1rem;
+}
+
+/* Nearby list */
+#nearby-list li,
+#peer-list li {
+    font-size: 0.9rem;
+}
+
+/* File selection list */
+#file-list li p,
+#selected-files-section p {
+    font-size: 0.875rem !important;
+    line-height: 1.45;
+}
+
+#selected-count {
+    font-size: 0.875rem !important;
+}
+
+/* Transfer cards */
+.transfer-card {
+    padding: 0.9rem !important;
+}
+
+.transfer-card .text-\[10px\],
+.transfer-card .text-\[11px\] {
+    font-size: 0.8125rem !important;
+    line-height: 1.45 !important;
+}
+
+.transfer-card .text-xs {
+    font-size: 0.875rem !important;
+}
+
+/* Progress metadata */
+.transfer-card [id$="-meta"] {
+    font-size: 0.75rem !important;
+    line-height: 1.45;
+    color: rgb(245 245 247 / 0.72) !important;
+}
+
+/* Buttons */
+.btn,
+.btn-primary,
+.btn-primary-sm,
+.btn-ghost,
+.btn-connect-sm,
+.outlined-btn,
+#connect-button,
+#send-button,
+#chat-send {
+    font-size: 0.9rem !important;
+    line-height: 1.4;
+}
+
+.btn-primary,
+.btn-ghost,
+.outlined-btn,
+#send-button {
+    padding: 0.7rem 1.1rem !important;
+}
+
+.btn-primary-sm,
+.btn-connect-sm,
+#connect-button,
+#chat-send {
+    padding: 0.55rem 0.85rem !important;
+}
+
+/* Inputs */
+.input-field,
+#peer-id-input,
+#chat-input {
+    font-size: 0.9rem !important;
+    line-height: 1.45;
+    padding: 0.6rem 0.75rem !important;
+}
+
+/* Manual connect section */
+@media (max-width: 640px) {
+    #manual-connect-form {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    50% {
-        box-shadow: 0 0 12px 2px rgb(0 229 255 / 0.15);
+    #connect-button {
+        width: 100%;
+    }
+}
+
+/* Chat */
+#chat-messages li p:first-child {
+    font-size: 0.75rem !important;
+    line-height: 1.4;
+    color: rgb(245 245 247 / 0.72) !important;
+}
+
+#chat-messages li p:last-child {
+    font-size: 0.9rem !important;
+    line-height: 1.5;
+    color: rgb(245 245 247 / 0.92) !important;
+}
+
+#chat-presence {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.55rem !important;
+}
+
+/* QR code */
+#qr-code-container p {
+    font-size: 0.75rem !important;
+    line-height: 1.45;
+    color: rgb(245 245 247 / 0.72) !important;
+}
+
+#peer-id-qr-code {
+    width: 170px;
+    height: 170px;
+}
+
+/* Icons */
+.ls-icon,
+i.bi {
+    font-size: 1.05em;
+}
+
+/* Modal */
+.modal-card h3 {
+    font-size: 1.1rem !important;
+    line-height: 1.35;
+}
+
+.modal-card p {
+    font-size: 0.95rem !important;
+    line-height: 1.55;
+    color: rgb(245 245 247 / 0.82) !important;
+}
+
+/* Toast/popup */
+.toast-item,
+#popup {
+    font-size: 0.875rem !important;
+    line-height: 1.45;
+    padding: 0.8rem 1rem !important;
+}
+
+/* Desktop extra boost */
+@media (min-width: 1024px) {
+    body {
+        font-size: 1rem;
+    }
+
+    .panel-heading,
+    .panel > h2 {
+        font-size: 0.875rem !important;
+    }
+
+    .peer-name {
+        font-size: 1rem !important;
+    }
+
+    .peer-id {
+        font-size: 0.8125rem !important;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-primary-sm,
+    .btn-ghost,
+    .btn-connect-sm,
+    .outlined-btn,
+    #connect-button,
+    #send-button,
+    #chat-send {
+        font-size: 0.95rem !important;
+    }
+
+    .input-field,
+    #peer-id-input,
+    #chat-input {
+        font-size: 0.95rem !important;
+    }
+
+    #chat-messages li p:last-child {
+        font-size: 0.95rem !important;
+    }
+
+    .transfer-card .text-\[10px\],
+    .transfer-card .text-\[11px\] {
+        font-size: 0.875rem !important;
     }
 }

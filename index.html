@@ -11,9 +11,214 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
 </head>
-<body class="min-h-screen bg-background text-text antialiased">
+<body class="min-h-screen flex flex-col bg-background text-text antialiased overflow-x-hidden">
+    <!-- LocalShare Custom Icon Sprite -->
+<svg xmlns="http://www.w3.org/2000/svg" class="ls-sprite" aria-hidden="true">
+  <symbol id="lsi-bolt" viewBox="0 0 24 24">
+    <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />
+  </symbol>
+
+  <symbol id="lsi-github" viewBox="0 0 24 24">
+    <circle cx="7" cy="6" r="2.2" />
+    <circle cx="7" cy="18" r="2.2" />
+    <circle cx="17" cy="6" r="2.2" />
+    <path d="M7 8.2v7.6M17 8.2c0 6-6.5 3.4-9.4 6.3" />
+  </symbol>
+
+  <symbol id="lsi-cpu" viewBox="0 0 24 24">
+    <rect x="7" y="7" width="10" height="10" />
+    <rect x="10.5" y="10.5" width="3" height="3" />
+    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+  </symbol>
+
+  <symbol id="lsi-radar" viewBox="0 0 24 24">
+    <rect x="4" y="4" width="16" height="16" />
+    <rect x="8" y="8" width="8" height="8" />
+    <path d="M12 12l6-6" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+  </symbol>
+
+  <symbol id="lsi-link" viewBox="0 0 24 24">
+    <path d="M9 15l6-6" />
+    <path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1" />
+    <path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1" />
+  </symbol>
+
+  <symbol id="lsi-plug" viewBox="0 0 24 24">
+    <path d="M9 2v5M15 2v5" />
+    <path d="M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7z" />
+    <path d="M12 17v5" />
+  </symbol>
+
+  <symbol id="lsi-refresh" viewBox="0 0 24 24">
+    <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+    <path d="M20 4v4h-4" />
+  </symbol>
+
+  <symbol id="lsi-cloud-up" viewBox="0 0 24 24">
+    <path d="M6 18h11a4 4 0 0 0 .8-7.92A6 6 0 0 0 6.2 8.6 4.5 4.5 0 0 0 6 18z" />
+    <path d="M12 15v-5M9 12l3-3 3 3" />
+  </symbol>
+
+  <symbol id="lsi-send" viewBox="0 0 24 24">
+    <path d="M3 11l18-8-8 18-2-8-8-2z" />
+  </symbol>
+
+  <symbol id="lsi-upload" viewBox="0 0 24 24">
+    <path d="M12 4v9" />
+    <path d="M8 8l4-4 4 4" />
+    <path d="M4 17v3h16v-3" />
+  </symbol>
+
+  <symbol id="lsi-download-box" viewBox="0 0 24 24">
+    <path d="M12 4v9" />
+    <path d="M8 9l4 4 4-4" />
+    <path d="M4 17v3h16v-3" />
+  </symbol>
+
+  <symbol id="lsi-download" viewBox="0 0 24 24">
+    <path d="M12 4v10" />
+    <path d="M8 10l4 4 4-4" />
+    <path d="M5 19h14" />
+  </symbol>
+
+  <symbol id="lsi-users" viewBox="0 0 24 24">
+    <rect x="4" y="5" width="6" height="6" />
+    <rect x="14" y="5" width="6" height="6" />
+    <path d="M4 20c0-3 2-4 6-4s6 1 6 4" />
+  </symbol>
+
+  <symbol id="lsi-chat" viewBox="0 0 24 24">
+    <path d="M4 4h16v12H9l-5 4V4z" />
+    <path d="M8 9h8M8 12h5" />
+  </symbol>
+
+  <symbol id="lsi-copy" viewBox="0 0 24 24">
+    <rect x="6" y="6" width="12" height="14" />
+    <path d="M9 4h10v12" />
+    <path d="M9 12h6M9 16h4" />
+  </symbol>
+
+  <symbol id="lsi-laptop" viewBox="0 0 24 24">
+    <rect x="5" y="5" width="14" height="9" />
+    <path d="M3 18h18" />
+  </symbol>
+
+  <symbol id="lsi-close" viewBox="0 0 24 24">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </symbol>
+
+  <symbol id="lsi-trash" viewBox="0 0 24 24">
+    <path d="M5 7h14" />
+    <path d="M9 7V5h6v2" />
+    <path d="M7.5 7l1 13h7l1-13" />
+    <path d="M10.5 10.5v6M13.5 10.5v6" />
+  </symbol>
+
+  <symbol id="lsi-hourglass" viewBox="0 0 24 24">
+    <path d="M6 3h12M6 21h12M7 3l5 7 5-7M7 21l5-7 5 7" />
+  </symbol>
+
+  <symbol id="lsi-check" viewBox="0 0 24 24">
+    <path d="M4 12l5 5L20 6" />
+  </symbol>
+
+  <symbol id="lsi-info" viewBox="0 0 24 24">
+    <rect x="4" y="4" width="16" height="16" />
+    <path d="M12 10v6" />
+    <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
+  </symbol>
+
+  <symbol id="lsi-warning" viewBox="0 0 24 24">
+    <path d="M12 3L2 21h20L12 3z" />
+    <path d="M12 9v6" />
+    <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none" />
+  </symbol>
+
+  <symbol id="lsi-error" viewBox="0 0 24 24">
+    <rect x="4" y="4" width="16" height="16" />
+    <path d="M9 9l6 6M15 9l-6 6" />
+  </symbol>
+
+  <symbol id="lsi-file" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+  </symbol>
+
+  <symbol id="lsi-file-text" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M9.5 12h5M9.5 15.5h5M9.5 8.5h1.5" />
+  </symbol>
+
+  <symbol id="lsi-file-pdf" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M9.5 13h5M9.5 16h3.5M9.5 10h2" />
+  </symbol>
+
+  <symbol id="lsi-file-doc" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M9.5 10h5M9.5 13h5M9.5 16h3.5" />
+  </symbol>
+
+  <symbol id="lsi-file-sheet" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M9.5 10h5v6h-5zM9.5 13h5M12 10v6" />
+  </symbol>
+
+  <symbol id="lsi-file-slides" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <rect x="9.5" y="10" width="5" height="4" />
+    <path d="M12 14v3" />
+  </symbol>
+
+  <symbol id="lsi-file-image" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <circle cx="10" cy="10.5" r="1.2" />
+    <path d="M9 17l2.2-2.2 1.8 1.8 2-2.6 1.5 3" />
+  </symbol>
+
+  <symbol id="lsi-file-audio" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M10.5 16v-5l4 1v4" />
+    <circle cx="9.7" cy="16" r="1.2" />
+    <circle cx="13.7" cy="16" r="1.2" />
+  </symbol>
+
+  <symbol id="lsi-file-video" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M10 10.5l5 2.5-5 2.5v-5z" />
+  </symbol>
+
+  <symbol id="lsi-file-archive" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M10.8 5.5h1.8M10.8 8h1.8M10.8 10.5h1.8M10.8 13h1.8" />
+    <rect x="9.8" y="15" width="3.8" height="3" />
+  </symbol>
+
+  <symbol id="lsi-file-code" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <path d="M10.2 10.8L8.5 12.5l1.7 1.7M13.8 10.8l1.7 1.7-1.7 1.7" />
+  </symbol>
+
+  <symbol id="lsi-file-app" viewBox="0 0 24 24">
+    <path d="M7 3h7l4 4v14H7V3z" />
+    <path d="M14 3v4h4" />
+    <rect x="9.5" y="9.5" width="5" height="5" />
+    <path d="M10.5 9.5v-1.5M13.5 9.5v-1.5M12 14.5v2.5" />
+  </symbol>
+</svg>
 
     <!-- Toast Notification -->
     <div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm"></div>
@@ -43,7 +248,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
             <!-- Left Column: Identity & Discovery -->
@@ -64,9 +269,11 @@
                         </div>
                     </div>
                     <div id="qr-code-container" class="mt-4 hidden">
-                        <p class="text-[10px] uppercase tracking-wider text-text/30 mb-2 font-medium">Scan to connect instantly</p>
-                        <canvas id="peer-id-qr-code"></canvas>
-                    </div>
+  <p class="text-[10px] uppercase tracking-wider text-text/30 mb-2 font-medium">
+    Scan to connect instantly
+  </p>
+  <canvas id="peer-id-qr-code" width="150" height="150"></canvas>
+</div>
                 </section>
 
                 <!-- Nearby Devices Card -->
@@ -84,15 +291,24 @@
 
                 <!-- Manual Connect Card -->
                 <section class="panel">
-                    <h2 class="panel-heading mb-4"><i class="bi bi-link-45deg mr-2"></i>Manual Connect</h2>
-                    <div class="flex gap-2">
-                        <input type="text" id="peer-id-input" placeholder="Paste Peer ID..."
-                            class="input-field flex-1 text-xs font-mono">
-                        <button id="connect-button" class="btn-primary-sm">
-                            <i class="bi bi-plug"></i> Connect
-                        </button>
-                    </div>
-                </section>
+  <h2 class="panel-heading mb-4">
+    <i class="bi bi-link-45deg mr-2"></i>Manual Connect
+  </h2>
+
+  <div id="manual-connect-form" class="manual-connect-form">
+    <input
+      type="text"
+      id="peer-id-input"
+      placeholder="Paste Peer ID..."
+      class="input-field manual-connect-input text-[11px] sm:text-xs font-mono"
+    >
+
+    <button id="connect-button" class="btn-primary-sm manual-connect-button">
+      <i class="bi bi-plug"></i>
+      Connect
+    </button>
+  </div>
+</section>
             </div>
 
             <!-- Center Column: File Sharing -->
@@ -167,10 +383,11 @@
                     <ul id="chat-messages" class="flex-1 space-y-2 max-h-52 overflow-y-auto scrollbar-thin mb-3 min-h-[120px]">
                         <li class="text-xs text-text/30 italic text-center py-6">Chat messages will appear here</li>
                     </ul>
-                    <div class="flex gap-2">
+                    <!-- Automatic display col adjust for input and send button -->
+                    <div class="chat-input-row flex flex-wrap gap-2 items-center">
                         <input type="text" id="chat-input" placeholder="Type a message..."
-                            class="input-field flex-1 text-xs">
-                        <button id="chat-send" class="icon-btn-primary">
+                            class="input-field flex-1 min-w-0 text-xs">
+                        <button id="chat-send" class="icon-btn-primary flex-none">
                             <i class="bi bi-send"></i>
                         </button>
                     </div>
@@ -180,7 +397,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-white/5 mt-8">
+    <footer class="mt-auto border-t border-white/5">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <span class="text-[11px] text-text/30">Made with <span class="text-red-400">❤️</span> by <a href="https://github.com/infinitode" class="hover:text-primary transition-colors">Infinitode</a></span>
             <span class="text-[10px] text-text/20 font-mono">v2.0.0</span>
@@ -200,7 +417,7 @@
             <div class="flex gap-3">
                 <button id="handshake-reject" class="btn-ghost flex-1">Decline</button>
                 <button id="handshake-accept" class="btn-primary flex-1">Accept</button>
-            </div>>
+            </div>
         </div>
     </div>
 
