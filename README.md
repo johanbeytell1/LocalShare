@@ -1,66 +1,164 @@
 # LocalShare
 
-LocalShare is a zero-configuration, peer-to-peer file-sharing and messaging web application built entirely with vanilla HTML, CSS (Tailwind CSS), and JavaScript. It uses WebRTC via PeerJS to allow devices on the same network to securely discover each other and transfer files directly without an intermediary server.
+<p align="center">
+  <img src="localshare-logo.png" width="80" alt="LocalShare Logo">
+</p>
 
-## Features
+<p align="center">
+  <strong>Zero-config peer-to-peer file sharing & messaging — no servers, no limits.</strong>
+</p>
 
-- **P2P Direct File Sharing:** Files transfer directly between devices with end-to-end data channels.
-- **Zero-Config Local Discovery:** Devices sharing a public IP address automatically discover and list each other inside a local network room without user configuration.
-- **Failover Room Registry:** Intelligent orchestration automatically elects a single device as a "Room Host Liaison" to synchronize the network roster, while smoothly transitioning roles if the host disconnects.
-- **Secure Connection Handshakes:** Safeguards privacy by forcing explicit "Accept / Reject" confirmations before establishing file-sharing authorization.
-- **Detailed Transfer Metrics:** Real-time visual progress monitoring including accurate speed tracking, percentage completion, and transfer byte gauges.
-- **Persistent Room Chat:** A lightweight, encrypted, in-room messaging board for communication between connected network peers.
-- **Manual Peer ID Fallback:** Outside of local subnets? Seamlessly bridge connections across any network via direct Peer ID input or QR-code scanning.
+<p align="center">
+  <a href="https://local-share.netlify.app/">🚀 Live Demo</a> ·
+  <a href="https://github.com/infinitode/LocalShare/issues">Report Bug</a> ·
+  <a href="https://github.com/infinitode/LocalShare/issues">Request Feature</a>
+</p>
 
-## Latest Architecture Updates
 
-- **Migrated to Single-Target Failover Architecture:** Completely removed legacy multi-slot scanning loops and backoff synchronization. Devices now target a unified room host profile, defaulting smoothly to client mode upon collision to ensure instant, quiet discovery initialization.
-- **Eliminated PeerJS Console Errors:** Implemented strict error exclusions and optimized connection lifecycle management to keep browser console logs perfectly clean from empty network scanning warnings.
-- **Bi-Directional Network Syncing:** The elected room host acts as a local routing registry, immediately broadcasting the source-of-truth network roster to all active connections in milliseconds.
-- **Enhanced Connection State Visibility:** Connection approvals and connection dropouts now update real-time state flags on both devices simultaneously and reliably.
-- **Modern Dark-Mode Accent UI:** Streamlined user layout utilizing high-contrast cyan elements, unified typography, and embedded fluid transfer states.
+## What is LocalShare?
 
-## Getting Started
+LocalShare is a fully client-side, peer-to-peer file-sharing and messaging web application built with **vanilla HTML, Tailwind CSS v4, and JavaScript**. It leverages **WebRTC via PeerJS** to enable devices on the same network to discover each other and transfer files directly — no intermediary server, no file size limits, no data leaves your network.
 
-### Use the Live App
-You can use the live web deployment instantly at:  
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| **Direct P2P Transfers** | Files stream device-to-device over encrypted WebRTC data channels |
+| **Zero-Config Discovery** | Devices sharing a public IP auto-discover each other via room registry |
+| **Corruption-Free Transfers** | FNV-1a checksum verification + ordered chunk assembly guarantees file integrity |
+| **High-Speed Chunking** | 256KB chunks with WebRTC backpressure control for maximum throughput |
+| **Failover Room Host** | Automatic host election with seamless failover if the host disconnects |
+| **Secure Handshakes** | Explicit Accept/Reject confirmation before any connection is established |
+| **Real-Time Transfer Metrics** | Live speed, percentage, and byte-count tracking with progress bars |
+| **Room Chat** | Encrypted in-room messaging between all connected peers |
+| **Manual Peer Connect** | Bridge any network via direct Peer ID or QR code scanning |
+| **Drag & Drop** | Native drag-and-drop file selection with multi-file support |
+| **Smart File Icons** | Automatic icon detection for 30+ file types (media, code, archives, apps) |
+
+## 🆕 v2.0 — What's New
+
+### Transfer Engine (Complete Rewrite)
+- **Eliminated file corruption**: Replaced naive `FileReader` chunking with direct `ArrayBuffer` slicing, ordered chunk indices, and FNV-1a checksum verification on receive
+- **256KB chunk size** (up from 64KB) for 4× faster transfers
+- **WebRTC backpressure**: Monitors `dataChannel.bufferedAmount` to prevent buffer overflow and data loss
+- **MIME type preservation**: Files are reconstructed with their original MIME type for proper handling by the OS
+- **Transfer-complete handshake**: Receiver verifies chunk count and checksum before assembling the final Blob
+- **Removed artificial delays**: Replaced `setTimeout(10ms)` chunking with `requestAnimationFrame` for smooth, non-blocking sends
+
+### Discovery & Networking
+- **Single-target failover architecture**: Devices probe one unified room host ID; on collision, they silently fall back to client mode
+- **Faster room resolution**: Ipify lookup with 4s abort timeout and graceful local fallback
+- **Clean console**: Suppressed all expected PeerJS warnings during normal discovery flow
+- **Reconnection handling**: Automatic signaling server reconnect with visual status indicators
+
+### UI/UX Overhaul
+- **Professional SaaS design**: Clean card-based layout with Inter font, consistent spacing, and subtle glass effects
+- **Toast notification system**: Replaced basic popup with animated, typed toast messages (info/success/error/warning)
+- **Drag-and-drop zone**: Visual feedback with scale animation on drag-over
+- **File type icons**: 30+ file extensions mapped to Bootstrap Icons
+- **Live transfer speed**: Real-time MB/s display during sends and receives
+- **Status indicators**: Network dot, device status, and connection count badges
+- **Responsive grid**: 12-column layout that adapts from mobile to desktop
+- **Dark-mode optimized**: Pure black (#000) AMOLED background with cyan/mint accents
+
+### Name Generator
+- **48 adjectives × 48 nouns × 900 numbers × 16 emojis** = 33M+ unique combinations
+- Emoji prefix for instant visual identification in peer lists
+
+## 🚀 Getting Started
+
+### Live App
 👉 **[https://local-share.netlify.app/](https://local-share.netlify.app/)**
 
 ### Local Setup
-To clone and preview LocalShare on your own machine using Git:
 
 ```bash
 # Clone the repository
-git clone [https://github.com/Infinitode/LocalShare.git](https://github.com/Infinitode/LocalShare.git)
+git clone https://github.com/Infinitode/LocalShare.git
 
-# Navigate into the project directory
+# Navigate into the project
 cd LocalShare
 
-# Open index.html in your preferred web browser or local live server environment
+# Compile Tailwind CSS v4 (requires Node.js)
+npx @tailwindcss/cli -i input.css -o output.css --watch
 
+# Open index.html in your browser or use a local server
+npx serve .
 ```
 
-## How It Works Under the Hood
+## 🏗️ Architecture
 
-1. **Room Assignment:** LocalShare requests your public IP through a secure, lightweight Ipify query, hashing it into a deterministic `#room-id`.
-2. **Evolving Roles:** The first device to enter a network room successfully binds to `ls-roomhost-[room-id]`. Any subsequent tabs or devices attempting to grab that string recognize that the slot is active and immediately pair with it as clients.
-3. **The Mesh Liaison:** Clients transmit their true, randomized UUIDs (`ls-[room-id]-[UUID]`) to the host. The host aggregates this list and instantly flashes it back to all local browser contexts, establishing automated mesh visibility.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Room Discovery                        │
+│                                                         │
+│  Device A ──┐                                          │
+│  Device B ──┼──► Room Host (ls-roomhost-{room-id})    │
+│  Device C ──┘       │                                   │
+│                     ▼                                   │
+│              Registry Roster Broadcast                   │
+│              (peer list sync to all clients)             │
+└─────────────────────────────────────────────────────────┘
 
-## Contributing
+┌─────────────────────────────────────────────────────────┐
+│                   File Transfer                          │
+│                                                         │
+│  Sender                      Receiver                   │
+│  ──────                      ────────                   │
+│  1. Read file as ArrayBuffer                            │
+│  2. Compute FNV-1a checksum                             │
+│  3. Send metadata (name, size,                          │
+│     chunks, mime, checksum)                             │
+│  4. Stream 256KB chunks ──────► Collect by index        │
+│     (with backpressure)         5. Verify chunk count   │
+│                                 6. Verify checksum      │
+│                                 7. Assemble Blob        │
+│                                 8. Offer download       │
+└─────────────────────────────────────────────────────────┘
+```
 
-Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+### Room Assignment
+LocalShare queries [ipify](https://www.ipify.org/) for your public IP, hashes it into a deterministic `#room-id`. All devices behind the same NAT share this room.
 
-If you encounter a bug, have optimization suggestions, or want to contribute new code blocks:
+### Host Election
+The first device binds to `ls-roomhost-{room-id}`. Subsequent devices detect the ID is taken and connect as clients. If the host drops, the next heartbeat triggers a new election.
 
-1. Open an issue detailing your observation or proposal on [GitHub](https://github.com/infinitode/LocalShare).
-2. Fork the Project.
-3. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
-5. Push to the Branch (`git push origin feature/AmazingFeature`).
-6. Open a Pull Request.
+### Transfer Integrity
+Every file transfer includes:
+1. **Chunk sequencing** — each chunk carries its index
+2. **FNV-1a checksum** — computed over the full file before send, verified after assembly
+3. **MIME type** — preserved for correct Blob construction
+4. **Completion signal** — explicit `transfer-complete` message triggers final verification
 
-## License
+## 🛠️ Tech Stack
 
-LocalShare is released under the terms of the **MIT License (Modified)**. Please see the [LICENSE](https://github.com/infinitode/LocalShare/blob/main/LICENSE) file for the full text.
+- **HTML5** — Semantic markup
+- **Tailwind CSS v4** — Utility-first styling (compiled via `@tailwindcss/cli`)
+- **Vanilla JavaScript (ES2022)** — No frameworks, no build step for logic
+- **PeerJS** — WebRTC abstraction for data channels
+- **QRCode.js** — Instant QR code generation for peer IDs
+- **Bootstrap Icons** — Icon system
 
-**Modified License Clause** The modified license clause grants users permission to create derivative works based on the LocalShare software. However, it explicitly requires any substantial alterations to the software to be clearly distinguished from the original work and distributed under a completely different name.
+## 🤝 Contributing
+
+Contributions make the open-source community an amazing place. Any contributions are greatly appreciated.
+
+1. **Fork** the Project
+2. **Create** your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** to the Branch (`git push origin feature/AmazingFeature`)
+5. **Open** a Pull Request
+
+Or simply [open an issue](https://github.com/infinitode/LocalShare/issues) with bug reports or suggestions.
+
+## 📄 License
+
+LocalShare is released under the **MIT License (Modified)**. See [LICENSE](LICENSE) for details.
+
+> **Modified Clause**: Derivative works must be clearly distinguished from the original and distributed under a different name.
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/infinitode">Infinitode</a>
+</p>
