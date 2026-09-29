@@ -166,6 +166,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // ═══════════════════════════════════════════
   // Theme Engine
   // ═══════════════════════════════════════════
+  // NOTE: declared early on purpose — applyThemeColor() runs at startup and
+  // repaints QR codes, so these must exist before that first call (avoids a
+  // temporal-dead-zone crash that would abort the entire init handler).
+  let currentPeerId = null; // set on peer open; used to repaint QR on theme change
+  let isRoomResolved = false; // flips true once initDiscovery resolves the room
+
   function applyThemeColor(color) {
     PREFS.themeColor = color;
     setStored("theme_color", color);
@@ -463,7 +469,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Application State
   // ═══════════════════════════════════════════
   let peer = null;
-  let currentPeerId = null; // set on peer open; used to repaint QR on theme change
   const connections = {}; // pid -> { conn, name, platform, security, rtt, status, pingTimer }
   let selectedFiles = [];
   const incomingTransfers = {}; // transferId -> transfer
@@ -473,7 +478,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let isHandshakeModalActive = false;
 
   let nearbyRoomId = "local";
-  let isRoomResolved = false; // flips true once initDiscovery resolves the room
   let nearbyScanTimer = null;
   let roomHostPeer = null;
   let isRoomHost = false;

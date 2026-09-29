@@ -4,7 +4,8 @@
   "description": "Zero-config peer-to-peer file sharing & messaging — no servers, no limits.",
   "scripts": {
     "build:css": "tailwindcss -i input.css -o index.css --minify",
-    "watch:css": "tailwindcss -i input.css -o index.css --watch"
+    "watch:css": "tailwindcss -i input.css -o index.css --watch",
+    "test": "node tests/smoke.cjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.0",
