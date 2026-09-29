@@ -35,6 +35,32 @@ LocalShare is a fully client-side, peer-to-peer file-sharing and messaging web a
 | **Drag & Drop** | Native drag-and-drop file selection with multi-file support |
 | **Smart File Icons** | Automatic icon detection for 30+ file types (media, code, archives, apps) |
 
+## 🆕 v2.1 — Reliability & Security Overhaul
+
+### Automatic Discovery & Reliability
+- **Multi-Source Room Resolution**: Multi-tier public IP lookup (ipify IPv4, icanhazip, api64) with timeouts, STUN candidate fallback, and local subnet normalization.
+- **Direct Room Link & QR Sharing**: Open or share any custom room via URL hash (`#room=my-room`) or scan a QR code to guarantee 100% discovery across separate Wi-Fi networks, cellular, or VPNs.
+- **Resilient Room Host Election**: Randomized jitter backoff eliminates collision storms during election; room host auto-reconnects on signaling drops.
+- **Distributed Peer Gossip**: Connected peers exchange active rosters; discovery persists even during room host transitions.
+- **Real-Time Latency Tracking**: Continuous RTT ping/pong metrics displayed on active connection cards.
+
+### Security & Integrity
+- **Cryptographic SAS Verification**: Deterministic 4-digit verification code and emoji fingerprint derived from peer IDs (`SHA-256 / FNV-1a`) to prevent man-in-the-middle attacks.
+- **Transfer Consent (File Offers)**: Receivers review file offers (sender, file list, sizes) before accepting, preventing unauthorized memory flooding and spam.
+- **Auto-Accept & Trusted Devices**: Configurable auto-accept toggle and remembered trusted device list for seamless home/office workflows.
+- **Transfer Cancellation**: Senders and receivers can abort in-flight transfers anytime, immediately releasing memory buffers.
+- **Zero-Copy Memory Assembly**: Direct `Blob` construction from binary chunk arrays avoids duplicate buffer allocations and eliminates OOM crashes on large files.
+- **Path Traversal & Execution Sanitization**: File names sanitized against directory traversal (`../`) and dangerous MIME types safely handled.
+
+### Modern SaaS UI / UX
+- **Refined SaaS Design**: Polished border radius, glowing cyber accents, subtle glassmorphic panels, and backdrop blurs.
+- **Custom Device Renaming**: Inline nickname editor persists to `localStorage` and syncs dynamically across linked peers.
+- **Theme Accent Switcher**: 6 cyber color palettes (Electric Cyan, Emerald Green, Neon Violet, Solar Amber, Rose Pink, Cyber Blue).
+- **In-App File Previewer**: Instant inline preview for received images, text/code, and audio files.
+- **Web Audio Chimes**: Synthesized audio feedback for connections, completed transfers, and messages (with mute toggle).
+- **Target Recipient Selection**: Choose to broadcast to all connected devices or target a specific peer.
+- **Folder Support**: Select and upload whole folders via directory input.
+
 ## 🆕 v2.0 — What's New
 
 ### Transfer Engine (Complete Rewrite)

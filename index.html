@@ -3,392 +3,554 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocalShare | P2P File Sharing</title>
+    <title>LocalShare | Secure P2P File Sharing</title>
     <link rel="icon" href="/localshare-logo.png" type="image/png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
 </head>
-<body class="min-h-screen flex flex-col bg-background text-text antialiased overflow-x-hidden">
+<body class="min-h-screen flex flex-col bg-background text-text antialiased overflow-x-hidden selection:bg-primary/20">
+
     <!-- LocalShare Custom Icon Sprite -->
-<svg xmlns="http://www.w3.org/2000/svg" class="ls-sprite" aria-hidden="true">
-  <symbol id="lsi-bolt" viewBox="0 0 24 24">
-    <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />
-  </symbol>
+    <svg xmlns="http://www.w3.org/2000/svg" class="ls-sprite" aria-hidden="true">
+      <symbol id="lsi-bolt" viewBox="0 0 24 24">
+        <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />
+      </symbol>
+      <symbol id="lsi-github" viewBox="0 0 24 24">
+        <circle cx="7" cy="6" r="2.2" />
+        <circle cx="7" cy="18" r="2.2" />
+        <circle cx="17" cy="6" r="2.2" />
+        <path d="M7 8.2v7.6M17 8.2c0 6-6.5 3.4-9.4 6.3" />
+      </symbol>
+      <symbol id="lsi-cpu" viewBox="0 0 24 24">
+        <rect x="7" y="7" width="10" height="10" />
+        <rect x="10.5" y="10.5" width="3" height="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </symbol>
+      <symbol id="lsi-radar" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" />
+        <rect x="8" y="8" width="8" height="8" />
+        <path d="M12 12l6-6" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="lsi-link" viewBox="0 0 24 24">
+        <path d="M9 15l6-6" />
+        <path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1" />
+        <path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1" />
+      </symbol>
+      <symbol id="lsi-plug" viewBox="0 0 24 24">
+        <path d="M9 2v5M15 2v5" />
+        <path d="M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7z" />
+        <path d="M12 17v5" />
+      </symbol>
+      <symbol id="lsi-refresh" viewBox="0 0 24 24">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+        <path d="M20 4v4h-4" />
+      </symbol>
+      <symbol id="lsi-cloud-up" viewBox="0 0 24 24">
+        <path d="M6 18h11a4 4 0 0 0 .8-7.92A6 6 0 0 0 6.2 8.6 4.5 4.5 0 0 0 6 18z" />
+        <path d="M12 15v-5M9 12l3-3 3 3" />
+      </symbol>
+      <symbol id="lsi-send" viewBox="0 0 24 24">
+        <path d="M3 11l18-8-8 18-2-8-8-2z" />
+      </symbol>
+      <symbol id="lsi-upload" viewBox="0 0 24 24">
+        <path d="M12 4v9" />
+        <path d="M8 8l4-4 4 4" />
+        <path d="M4 17v3h16v-3" />
+      </symbol>
+      <symbol id="lsi-download-box" viewBox="0 0 24 24">
+        <path d="M12 4v9" />
+        <path d="M8 9l4 4 4-4" />
+        <path d="M4 17v3h16v-3" />
+      </symbol>
+      <symbol id="lsi-download" viewBox="0 0 24 24">
+        <path d="M12 4v10" />
+        <path d="M8 10l4 4 4-4" />
+        <path d="M5 19h14" />
+      </symbol>
+      <symbol id="lsi-users" viewBox="0 0 24 24">
+        <rect x="4" y="5" width="6" height="6" />
+        <rect x="14" y="5" width="6" height="6" />
+        <path d="M4 20c0-3 2-4 6-4s6 1 6 4" />
+      </symbol>
+      <symbol id="lsi-chat" viewBox="0 0 24 24">
+        <path d="M4 4h16v12H9l-5 4V4z" />
+        <path d="M8 9h8M8 12h5" />
+      </symbol>
+      <symbol id="lsi-copy" viewBox="0 0 24 24">
+        <rect x="6" y="6" width="12" height="14" />
+        <path d="M9 4h10v12" />
+        <path d="M9 12h6M9 16h4" />
+      </symbol>
+      <symbol id="lsi-laptop" viewBox="0 0 24 24">
+        <rect x="5" y="5" width="14" height="9" />
+        <path d="M3 18h18" />
+      </symbol>
+      <symbol id="lsi-phone" viewBox="0 0 24 24">
+        <rect x="6" y="2" width="12" height="20" rx="3" />
+        <circle cx="12" cy="18" r="1" fill="currentColor" />
+      </symbol>
+      <symbol id="lsi-close" viewBox="0 0 24 24">
+        <path d="M6 6l12 12M18 6L6 18" />
+      </symbol>
+      <symbol id="lsi-trash" viewBox="0 0 24 24">
+        <path d="M5 7h14" />
+        <path d="M9 7V5h6v2" />
+        <path d="M7.5 7l1 13h7l1-13" />
+        <path d="M10.5 10.5v6M13.5 10.5v6" />
+      </symbol>
+      <symbol id="lsi-hourglass" viewBox="0 0 24 24">
+        <path d="M6 3h12M6 21h12M7 3l5 7 5-7M7 21l5-7 5 7" />
+      </symbol>
+      <symbol id="lsi-check" viewBox="0 0 24 24">
+        <path d="M4 12l5 5L20 6" />
+      </symbol>
+      <symbol id="lsi-info" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" />
+        <path d="M12 10v6" />
+        <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="lsi-warning" viewBox="0 0 24 24">
+        <path d="M12 3L2 21h20L12 3z" />
+        <path d="M12 9v6" />
+        <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="lsi-error" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" />
+        <path d="M9 9l6 6M15 9l-6 6" />
+      </symbol>
+      <symbol id="lsi-shield" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </symbol>
+      <symbol id="lsi-eye" viewBox="0 0 24 24">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="lsi-file" viewBox="0 0 24 24">
+        <path d="M7 3h7l4 4v14H7V3z" />
+        <path d="M14 3v4h4" />
+      </symbol>
+      <symbol id="lsi-file-text" viewBox="0 0 24 24">
+        <path d="M7 3h7l4 4v14H7V3z" />
+        <path d="M14 3v4h4" />
+        <path d="M9.5 12h5M9.5 15.5h5M9.5 8.5h1.5" />
+      </symbol>
+      <symbol id="lsi-file-pdf" viewBox="0 0 24 24">
+        <path d="M7 3h7l4 4v14H7V3z" />
+        <path d="M14 3v4h4" />
+        <path d="M9.5 13h5M9.5 16h3.5M9.5 10h2" />
+      </symbol>
+      <symbol id="lsi-file-image" viewBox="0 0 24 24">
+        <path d="M7 3h7l4 4v14H7V3z" />
+        <path d="M14 3v4h4" />
+        <circle cx="10" cy="10.5" r="1.2" />
+        <path d="M9 17l2.2-2.2 1.8 1.8 2-2.6 1.5 3" />
+      </symbol>
+    </svg>
 
-  <symbol id="lsi-github" viewBox="0 0 24 24">
-    <circle cx="7" cy="6" r="2.2" />
-    <circle cx="7" cy="18" r="2.2" />
-    <circle cx="17" cy="6" r="2.2" />
-    <path d="M7 8.2v7.6M17 8.2c0 6-6.5 3.4-9.4 6.3" />
-  </symbol>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-[9999] flex flex-col gap-2.5 pointer-events-none"></div>
 
-  <symbol id="lsi-cpu" viewBox="0 0 24 24">
-    <rect x="7" y="7" width="10" height="10" />
-    <rect x="10.5" y="10.5" width="3" height="3" />
-    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-  </symbol>
-
-  <symbol id="lsi-radar" viewBox="0 0 24 24">
-    <rect x="4" y="4" width="16" height="16" />
-    <rect x="8" y="8" width="8" height="8" />
-    <path d="M12 12l6-6" />
-    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
-  </symbol>
-
-  <symbol id="lsi-link" viewBox="0 0 24 24">
-    <path d="M9 15l6-6" />
-    <path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1" />
-    <path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1" />
-  </symbol>
-
-  <symbol id="lsi-plug" viewBox="0 0 24 24">
-    <path d="M9 2v5M15 2v5" />
-    <path d="M7 7h10v5a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7z" />
-    <path d="M12 17v5" />
-  </symbol>
-
-  <symbol id="lsi-refresh" viewBox="0 0 24 24">
-    <path d="M20 12a8 8 0 1 1-2.34-5.66" />
-    <path d="M20 4v4h-4" />
-  </symbol>
-
-  <symbol id="lsi-cloud-up" viewBox="0 0 24 24">
-    <path d="M6 18h11a4 4 0 0 0 .8-7.92A6 6 0 0 0 6.2 8.6 4.5 4.5 0 0 0 6 18z" />
-    <path d="M12 15v-5M9 12l3-3 3 3" />
-  </symbol>
-
-  <symbol id="lsi-send" viewBox="0 0 24 24">
-    <path d="M3 11l18-8-8 18-2-8-8-2z" />
-  </symbol>
-
-  <symbol id="lsi-upload" viewBox="0 0 24 24">
-    <path d="M12 4v9" />
-    <path d="M8 8l4-4 4 4" />
-    <path d="M4 17v3h16v-3" />
-  </symbol>
-
-  <symbol id="lsi-download-box" viewBox="0 0 24 24">
-    <path d="M12 4v9" />
-    <path d="M8 9l4 4 4-4" />
-    <path d="M4 17v3h16v-3" />
-  </symbol>
-
-  <symbol id="lsi-download" viewBox="0 0 24 24">
-    <path d="M12 4v10" />
-    <path d="M8 10l4 4 4-4" />
-    <path d="M5 19h14" />
-  </symbol>
-
-  <symbol id="lsi-users" viewBox="0 0 24 24">
-    <rect x="4" y="5" width="6" height="6" />
-    <rect x="14" y="5" width="6" height="6" />
-    <path d="M4 20c0-3 2-4 6-4s6 1 6 4" />
-  </symbol>
-
-  <symbol id="lsi-chat" viewBox="0 0 24 24">
-    <path d="M4 4h16v12H9l-5 4V4z" />
-    <path d="M8 9h8M8 12h5" />
-  </symbol>
-
-  <symbol id="lsi-copy" viewBox="0 0 24 24">
-    <rect x="6" y="6" width="12" height="14" />
-    <path d="M9 4h10v12" />
-    <path d="M9 12h6M9 16h4" />
-  </symbol>
-
-  <symbol id="lsi-laptop" viewBox="0 0 24 24">
-    <rect x="5" y="5" width="14" height="9" />
-    <path d="M3 18h18" />
-  </symbol>
-
-  <symbol id="lsi-close" viewBox="0 0 24 24">
-    <path d="M6 6l12 12M18 6L6 18" />
-  </symbol>
-
-  <symbol id="lsi-trash" viewBox="0 0 24 24">
-    <path d="M5 7h14" />
-    <path d="M9 7V5h6v2" />
-    <path d="M7.5 7l1 13h7l1-13" />
-    <path d="M10.5 10.5v6M13.5 10.5v6" />
-  </symbol>
-
-  <symbol id="lsi-hourglass" viewBox="0 0 24 24">
-    <path d="M6 3h12M6 21h12M7 3l5 7 5-7M7 21l5-7 5 7" />
-  </symbol>
-
-  <symbol id="lsi-check" viewBox="0 0 24 24">
-    <path d="M4 12l5 5L20 6" />
-  </symbol>
-
-  <symbol id="lsi-info" viewBox="0 0 24 24">
-    <rect x="4" y="4" width="16" height="16" />
-    <path d="M12 10v6" />
-    <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
-  </symbol>
-
-  <symbol id="lsi-warning" viewBox="0 0 24 24">
-    <path d="M12 3L2 21h20L12 3z" />
-    <path d="M12 9v6" />
-    <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none" />
-  </symbol>
-
-  <symbol id="lsi-error" viewBox="0 0 24 24">
-    <rect x="4" y="4" width="16" height="16" />
-    <path d="M9 9l6 6M15 9l-6 6" />
-  </symbol>
-
-  <symbol id="lsi-file" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-  </symbol>
-
-  <symbol id="lsi-file-text" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M9.5 12h5M9.5 15.5h5M9.5 8.5h1.5" />
-  </symbol>
-
-  <symbol id="lsi-file-pdf" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M9.5 13h5M9.5 16h3.5M9.5 10h2" />
-  </symbol>
-
-  <symbol id="lsi-file-doc" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M9.5 10h5M9.5 13h5M9.5 16h3.5" />
-  </symbol>
-
-  <symbol id="lsi-file-sheet" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M9.5 10h5v6h-5zM9.5 13h5M12 10v6" />
-  </symbol>
-
-  <symbol id="lsi-file-slides" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <rect x="9.5" y="10" width="5" height="4" />
-    <path d="M12 14v3" />
-  </symbol>
-
-  <symbol id="lsi-file-image" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <circle cx="10" cy="10.5" r="1.2" />
-    <path d="M9 17l2.2-2.2 1.8 1.8 2-2.6 1.5 3" />
-  </symbol>
-
-  <symbol id="lsi-file-audio" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M10.5 16v-5l4 1v4" />
-    <circle cx="9.7" cy="16" r="1.2" />
-    <circle cx="13.7" cy="16" r="1.2" />
-  </symbol>
-
-  <symbol id="lsi-file-video" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M10 10.5l5 2.5-5 2.5v-5z" />
-  </symbol>
-
-  <symbol id="lsi-file-archive" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M10.8 5.5h1.8M10.8 8h1.8M10.8 10.5h1.8M10.8 13h1.8" />
-    <rect x="9.8" y="15" width="3.8" height="3" />
-  </symbol>
-
-  <symbol id="lsi-file-code" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <path d="M10.2 10.8L8.5 12.5l1.7 1.7M13.8 10.8l1.7 1.7-1.7 1.7" />
-  </symbol>
-
-  <symbol id="lsi-file-app" viewBox="0 0 24 24">
-    <path d="M7 3h7l4 4v14H7V3z" />
-    <path d="M14 3v4h4" />
-    <rect x="9.5" y="9.5" width="5" height="5" />
-    <path d="M10.5 9.5v-1.5M13.5 9.5v-1.5M12 14.5v2.5" />
-  </symbol>
-</svg>
-
-    <!-- Toast Notification -->
-    <div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm"></div>
-
-    <!-- Navigation -->
-    <nav class="site-nav sticky top-0 z-50 border-b border-white/6">
+    <!-- Site Navigation -->
+    <nav class="site-nav sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-14">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand -->
                 <div class="flex items-center gap-3">
-                    <img src="/localshare-logo.png" alt="LocalShare" class="w-8 h-8 rounded-lg">
-                    <span class="text-lg font-bold tracking-tight text-white">LocalShare</span>
-                    <span class="hidden sm:inline-flex items-center gap-1 text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
-                        <i class="bi bi-lightning-charge-fill"></i> P2P
-                    </span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div id="network-badge" class="hidden sm:flex items-center gap-2 text-xs text-text/50">
-                        <span class="w-2 h-2 rounded-full bg-text/20 animate-pulse" id="network-dot"></span>
-                        <span id="network-label">Initializing...</span>
+                    <div class="relative flex items-center justify-center">
+                        <img src="/localshare-logo.png" alt="LocalShare" class="w-9 h-9 rounded-xl shadow-lg border border-white/10">
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-background animate-pulse"></span>
                     </div>
-                    <a href="https://github.com/infinitode" target="_blank" class="text-text/40 hover:text-primary transition-colors text-sm">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm sm:text-lg font-extrabold tracking-tight text-white whitespace-nowrap">LocalShare</span>
+                            <span class="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20 whitespace-nowrap">
+                                <i class="bi bi-shield-check"></i> Encrypted P2P
+                            </span>
+                        </div>
+                        <p class="hidden sm:block text-[10px] text-text/40 font-medium">Direct Device-to-Device Transfer</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls (desktop) -->
+                <div class="hidden md:flex items-center gap-2 sm:gap-3">
+                    <!-- Room Info Pill & Switcher -->
+                    <button id="room-badge-btn" class="js-room-btn flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-primary/40 hover:bg-white/10 transition-all text-xs text-text/70" title="Click to share or switch room">
+                        <span class="js-network-dot w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0" id="network-dot"></span>
+                        <span id="network-label" class="js-network-label font-mono text-[11px] font-medium text-text/80 truncate">Room: Initializing...</span>
+                        <i class="bi bi-share text-[11px] text-primary ml-1 flex-shrink-0"></i>
+                    </button>
+
+                    <!-- Auto-Accept Files Toggle -->
+                    <button id="auto-accept-toggle" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white" title="Auto-accept file transfers from trusted peers">
+                        <i class="bi bi-shield-lock" id="auto-accept-icon"></i>
+                        <span id="auto-accept-label" class="text-[11px]">Auto-Accept: Off</span>
+                    </button>
+
+                    <!-- Audio Chime Toggle -->
+                    <button id="sound-toggle-btn" class="icon-btn text-text/60 hover:text-white" title="Toggle Sound Chimes">
+                        <i class="bi bi-volume-up" id="sound-icon"></i>
+                    </button>
+
+                    <!-- Theme Accent Picker -->
+                    <div class="relative">
+                        <button id="theme-btn" class="icon-btn text-text/60 hover:text-white" title="Choose Accent Color">
+                            <i class="bi bi-palette"></i>
+                        </button>
+                        <div id="theme-dropdown" class="hidden absolute right-0 mt-2 p-2 rounded-xl bg-surface border border-white/10 shadow-2xl z-50 flex gap-2">
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#00E5FF" style="background:#00E5FF" title="Electric Cyan"></button>
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#10B981" style="background:#10B981" title="Emerald Green"></button>
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#8B5CF6" style="background:#8B5CF6" title="Neon Violet"></button>
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#F59E0B" style="background:#F59E0B" title="Solar Amber"></button>
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#F43F5E" style="background:#F43F5E" title="Rose Pink"></button>
+                            <button class="theme-color-swatch w-6 h-6 rounded-full border border-white/20 transition-transform hover:scale-110" data-color="#3B82F6" style="background:#3B82F6" title="Cyber Blue"></button>
+                        </div>
+                    </div>
+
+                    <!-- GitHub Link -->
+                    <a href="https://github.com/infinitode" target="_blank" rel="noopener" class="icon-btn text-text/60 hover:text-primary transition-colors text-sm" title="View on GitHub">
                         <i class="bi bi-github"></i>
                     </a>
                 </div>
+
+                <!-- Mobile hamburger button -->
+                <button id="mobile-menu-btn" class="md:hidden icon-btn text-text/70 hover:text-white flex-shrink-0" title="Open menu" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+                    <i id="mobile-menu-icon" class="bi bi-list text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Mobile room sub-bar -->
+            <div class="md:hidden pb-3">
+                <button id="room-badge-btn-mobile" class="js-room-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 active:border-primary/40 active:bg-white/10 transition-all text-xs text-text/70" title="Tap to share or switch room">
+                    <span class="js-network-dot w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+                    <span class="js-network-label font-mono text-[11px] font-medium text-text/80 truncate flex-1 text-left min-w-0">Room: Initializing...</span>
+                    <i class="bi bi-share text-[11px] text-primary flex-shrink-0"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile dropdown menu -->
+        <div id="mobile-menu" class="hidden md:hidden absolute left-3 right-3 top-full z-50 rounded-2xl border border-white/10 bg-[#0b0b0e]/95 backdrop-blur-xl shadow-2xl p-2">
+            <button id="sound-menu-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                <span class="flex items-center gap-2.5 text-sm text-text/80">
+                    <i id="sound-menu-icon" class="bi bi-volume-up text-primary"></i> Sound Chimes
+                </span>
+                <span id="sound-menu-state" class="text-[11px] font-semibold text-accent">On</span>
+            </button>
+            <button id="autoaccept-menu-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                <span class="flex items-center gap-2.5 text-sm text-text/80">
+                    <i id="autoaccept-menu-icon" class="bi bi-shield-lock text-primary"></i> Auto-Accept Files
+                </span>
+                <span id="autoaccept-menu-state" class="text-[11px] font-semibold text-text/50">Off</span>
+            </button>
+            <div class="px-3 pt-2.5 pb-1.5">
+                <p class="text-[10px] uppercase font-bold tracking-wider text-text/40 mb-2">Accent Color</p>
+                <div class="flex flex-wrap gap-2.5">
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#00E5FF" style="background:#00E5FF" title="Electric Cyan" aria-label="Electric Cyan"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#10B981" style="background:#10B981" title="Emerald Green" aria-label="Emerald Green"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#8B5CF6" style="background:#8B5CF6" title="Neon Violet" aria-label="Neon Violet"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#F59E0B" style="background:#F59E0B" title="Solar Amber" aria-label="Solar Amber"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#F43F5E" style="background:#F43F5E" title="Rose Pink" aria-label="Rose Pink"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#3B82F6" style="background:#3B82F6" title="Cyber Blue" aria-label="Cyber Blue"></button>
+                </div>
+            </div>
+            <div class="border-t border-white/10 mt-1 pt-1">
+                <a href="https://github.com/infinitode" target="_blank" rel="noopener" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                    <i class="bi bi-github text-primary"></i>
+                    <span class="text-sm text-text/80">View on GitHub</span>
+                </a>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Main Content Grid -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-5 sm:py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
 
-            <!-- Left Column: Identity & Discovery -->
+            <!-- ═══════════════════════════════════════════
+                 Left Column: Identity & Discovery
+                 ═══════════════════════════════════════════ -->
             <div class="lg:col-span-4 space-y-5">
 
                 <!-- My Device Card -->
                 <section class="panel">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="panel-heading"><i class="bi bi-cpu mr-2"></i>My Device</h2>
-                        <span class="status-dot" id="device-status-dot"></span>
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" id="device-status-dot"></span>
+                            <h2 class="panel-heading"><i class="bi bi-cpu mr-2"></i>My Device</h2>
+                        </div>
+                        <span id="device-role-badge" class="text-[10px] font-semibold bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-text/60">Client</span>
                     </div>
-                    <div id="status" class="min-h-[60px]">
-                        <div class="flex items-center gap-3 text-text/40">
-                            <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center animate-pulse">
-                                <i class="bi bi-hourglass-split"></i>
+
+                    <!-- Device Info Area -->
+                    <div id="status" class="min-h-[70px]">
+                        <div class="flex items-center gap-3 text-text/50 py-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center animate-pulse">
+                                <i class="bi bi-hourglass-split text-base"></i>
                             </div>
-                            <span class="text-sm">Initializing...</span>
+                            <div>
+                                <p class="text-sm font-semibold text-white">Initializing peer...</p>
+                                <p class="text-[11px] text-text/40">Acquiring network room & WebRTC identity</p>
+                            </div>
                         </div>
                     </div>
-                    <div id="qr-code-container" class="mt-4 hidden">
-  <p class="text-[10px] uppercase tracking-wider text-text/30 mb-2 font-medium">
-    Scan to connect instantly
-  </p>
-  <canvas id="peer-id-qr-code" width="150" height="150"></canvas>
-</div>
+
+                    <!-- Quick Action Chips -->
+                    <div class="mt-3 pt-3 border-t border-white/6 flex items-center justify-between gap-2">
+                        <button id="toggle-qr-btn" class="flex-1 inline-flex items-center justify-center gap-1.5 text-xs text-text/70 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                            <i class="bi bi-qr-code"></i> <span id="toggle-qr-label">Show QR Code</span>
+                        </button>
+                        <button id="share-device-link-btn" class="flex-1 inline-flex items-center justify-center gap-1.5 text-xs text-text/70 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                            <i class="bi bi-link-45deg"></i> Share Link
+                        </button>
+                    </div>
+
+                    <!-- QR Code Expanded Section -->
+                    <div id="qr-code-container" class="mt-4 pt-3 border-t border-white/6 hidden flex-col items-center">
+                        <p class="text-[11px] text-text/60 mb-2 font-medium text-center">
+                            Scan with phone camera to connect directly
+                        </p>
+                        <canvas id="peer-id-qr-code" width="160" height="160" class="rounded-xl shadow-lg border border-primary/20"></canvas>
+                        <p class="text-[10px] text-text/40 mt-1 font-mono text-center">Peer ID encoded in QR</p>
+                    </div>
                 </section>
 
                 <!-- Nearby Devices Card -->
                 <section class="panel">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="panel-heading"><i class="bi bi-radar mr-2"></i>Nearby Devices</h2>
-                        <button id="rescan-btn" class="icon-btn" title="Rescan">
-                            <i class="bi bi-arrow-clockwise"></i>
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div class="flex items-center gap-2">
+                            <h2 class="panel-heading"><i class="bi bi-radar mr-2"></i>Nearby Devices</h2>
+                            <span id="discovery-badge" class="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">Scanning</span>
+                        </div>
+                        <button id="rescan-btn" class="icon-btn text-text/60 hover:text-primary" title="Rescan network for peers">
+                            <i class="bi bi-arrow-clockwise text-sm"></i>
                         </button>
                     </div>
+
                     <ul id="nearby-list" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-                        <li class="text-xs text-text/40 italic text-center py-6">Scanning for devices...</li>
+                        <li class="p-6 text-center text-xs text-text/40 italic flex flex-col items-center justify-center gap-3">
+                            <div class="radar-container">
+                                <div class="radar-wave"></div>
+                                <div class="radar-wave"></div>
+                                <div class="radar-wave"></div>
+                                <i class="bi bi-radar text-primary text-base relative z-10"></i>
+                            </div>
+                            <span>Scanning for devices on your network...</span>
+                        </li>
                     </ul>
                 </section>
 
-                <!-- Manual Connect Card -->
+                <!-- Manual Connect & Room Switcher -->
                 <section class="panel">
-  <h2 class="panel-heading mb-4">
-    <i class="bi bi-link-45deg mr-2"></i>Manual Connect
-  </h2>
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex gap-2 text-xs font-semibold">
+                            <button id="tab-peer-id" class="px-2.5 py-1 rounded-lg bg-primary/15 text-primary border border-primary/30 transition-all">Direct Peer</button>
+                            <button id="tab-room-id" class="px-2.5 py-1 rounded-lg bg-white/5 text-text/60 hover:text-white border border-white/10 transition-all">Join Room</button>
+                        </div>
+                    </div>
 
-  <div id="manual-connect-form" class="manual-connect-form">
-    <input
-      type="text"
-      id="peer-id-input"
-      placeholder="Paste Peer ID..."
-      class="input-field manual-connect-input text-[11px] sm:text-xs font-mono"
-    >
+                    <!-- Mode 1: Connect by Peer ID -->
+                    <div id="section-peer-connect">
+                        <div class="manual-connect-form">
+                            <input
+                                type="text"
+                                id="peer-id-input"
+                                placeholder="Paste Peer ID (e.g. ls-room-123)..."
+                                class="input-field manual-connect-input text-xs font-mono"
+                            >
+                            <button id="paste-peer-id-btn" class="icon-btn flex-none" title="Paste from clipboard">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button id="connect-button" class="btn-primary-sm manual-connect-button">
+                                <i class="bi bi-plug"></i> Connect
+                            </button>
+                        </div>
+                    </div>
 
-    <button id="connect-button" class="btn-primary-sm manual-connect-button">
-      <i class="bi bi-plug"></i>
-      Connect
-    </button>
-  </div>
-</section>
+                    <!-- Mode 2: Join Custom Room -->
+                    <div id="section-room-connect" class="hidden">
+                        <div class="manual-connect-form">
+                            <input
+                                type="text"
+                                id="room-custom-input"
+                                placeholder="Enter Room Name / Code..."
+                                class="input-field manual-connect-input text-xs font-mono"
+                            >
+                            <button id="join-room-btn" class="btn-primary-sm manual-connect-button">
+                                <i class="bi bi-door-open"></i> Join Room
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-text/40 mt-1.5 leading-normal">
+                            Devices with the same Room Name auto-discover each other across networks.
+                        </p>
+                    </div>
+                </section>
             </div>
 
-            <!-- Center Column: File Sharing -->
+            <!-- ═══════════════════════════════════════════
+                 Center Column: File Sharing & Transfers
+                 ═══════════════════════════════════════════ -->
             <div class="lg:col-span-5 space-y-5">
 
                 <!-- Send Files Card -->
                 <section class="panel">
-                    <h2 class="panel-heading mb-4"><i class="bi bi-cloud-arrow-up mr-2"></i>Send Files</h2>
-                    
+                    <div class="flex items-center justify-between mb-3.5">
+                        <h2 class="panel-heading"><i class="bi bi-cloud-arrow-up mr-2"></i>Send Files</h2>
+                        <span class="hidden min-[420px]:block text-[10px] text-text/50 font-medium whitespace-nowrap">Encrypted Direct P2P • No Limits</span>
+                    </div>
+
                     <!-- Drop Zone -->
-                    <div id="drop-zone" class="drop-zone group cursor-pointer">
+                    <div id="drop-zone" class="drop-zone group">
                         <input type="file" id="file-input" multiple class="hidden">
-                        <div class="drop-zone-content">
-                            <div class="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                <i class="bi bi-cloud-arrow-up text-xl text-primary"></i>
+                        <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden">
+
+                        <div class="drop-zone-content py-2">
+                            <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:border-primary transition-all shadow-inner">
+                                <i class="bi bi-cloud-arrow-up text-2xl text-primary"></i>
                             </div>
-                            <p class="text-sm font-medium text-text/80">Drop files or click to browse</p>
-                            <p class="text-[11px] text-text/40 mt-1">Any file type • No size limit</p>
+                            <p class="text-sm font-semibold text-white">Drag & drop files here, or browse</p>
+                            <p class="text-xs text-text/40 mt-1">Images, videos, documents, code, or archives</p>
+
+                            <!-- Browse Buttons -->
+                            <div class="flex items-center gap-2 mt-4" onclick="event.stopPropagation()">
+                                <button type="button" id="browse-files-btn" class="btn-ghost text-xs py-1.5 px-3">
+                                    <i class="bi bi-file-earmark-plus"></i> Browse Files
+                                </button>
+                                <button type="button" id="browse-folder-btn" class="btn-ghost text-xs py-1.5 px-3">
+                                    <i class="bi bi-folder-plus"></i> Browse Folder
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Selected Files -->
-                    <div id="selected-files-section" class="mt-4 hidden">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-medium text-text/60">
-                                Selected Files <span id="selected-count" class="text-primary font-bold">0</span>
-                            </span>
-                            <button id="clear-files-btn" class="text-[10px] text-text/40 hover:text-red-400 transition-colors">Clear all</button>
+                    <!-- Selected Files Section -->
+                    <div id="selected-files-section" class="mt-4 hidden space-y-3">
+                        <div class="flex items-center justify-between px-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-semibold text-white">
+                                    Selected Files (<span id="selected-count" class="text-primary font-bold">0</span>)
+                                </span>
+                                <span id="selected-total-size" class="text-[11px] text-text/50 font-mono">0 B</span>
+                            </div>
+                            <button id="clear-files-btn" class="text-xs text-text/40 hover:text-red-400 transition-colors flex items-center gap-1">
+                                <i class="bi bi-trash text-[11px]"></i> Clear all
+                            </button>
                         </div>
-                        <ul id="file-list" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin"></ul>
-                        <button id="send-button" class="btn-primary w-full mt-3">
-                            <i class="bi bi-send-fill mr-2"></i>Send to All Connections
-                        </button>
+
+                        <!-- Selected File List -->
+                        <ul id="file-list" class="space-y-2 max-h-52 overflow-y-auto scrollbar-thin pr-1"></ul>
+
+                        <!-- Target Peer Selector & Send Button -->
+                        <div class="pt-2 border-t border-white/6 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                            <div class="flex-1">
+                                <label for="target-peer-select" class="block text-[10px] uppercase font-bold text-text/40 mb-1">Target Recipient</label>
+                                <select id="target-peer-select" class="input-field text-xs py-2">
+                                    <option value="all">⚡ All Connected Devices</option>
+                                </select>
+                            </div>
+                            <button id="send-button" class="btn-primary sm:self-end py-2.5 px-5 whitespace-nowrap">
+                                <i class="bi bi-send-fill mr-1.5"></i> Send Files
+                            </button>
+                        </div>
                     </div>
                 </section>
 
-                <!-- Transfers Section -->
+                <!-- Transfers Section (Active Transfers & Received Files) -->
                 <section id="transfers-section" class="hidden space-y-5">
-                    <!-- Outgoing -->
+                    <!-- Outgoing Card -->
                     <div id="outgoing-card" class="panel hidden">
-                        <h2 class="panel-heading mb-3"><i class="bi bi-box-arrow-up mr-2"></i>Outgoing</h2>
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="panel-heading"><i class="bi bi-box-arrow-up mr-2"></i>Outgoing Transfers</h2>
+                            <span id="outgoing-count-badge" class="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">0 Active</span>
+                        </div>
                         <ul id="send-progress-list" class="space-y-3"></ul>
                     </div>
-                    <!-- Received -->
+
+                    <!-- Received Card -->
                     <div id="received-card" class="panel hidden">
-                        <h2 class="panel-heading mb-3"><i class="bi bi-box-arrow-in-down mr-2"></i>Received</h2>
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="panel-heading"><i class="bi bi-box-arrow-in-down mr-2"></i>Received Files</h2>
+                            <div class="flex items-center gap-2">
+                                <span id="received-count-badge" class="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Files</span>
+                                <button id="clear-received-btn" class="text-[11px] text-text/40 hover:text-red-400 transition-colors" title="Clear all received files list">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
                         <ul id="received-files" class="space-y-3"></ul>
                     </div>
                 </section>
             </div>
 
-            <!-- Right Column: Connections & Chat -->
+            <!-- ═══════════════════════════════════════════
+                 Right Column: Connections & Room Chat
+                 ═══════════════════════════════════════════ -->
             <div class="lg:col-span-3 space-y-5">
 
-                <!-- Active Connections -->
+                <!-- Active Connections Card -->
                 <section class="panel">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="panel-heading"><i class="bi bi-people mr-2"></i>Connections</h2>
-                        <span id="connection-count" class="text-[10px] bg-white/5 text-text/50 px-2 py-0.5 rounded-full">0</span>
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div class="flex items-center gap-2">
+                            <h2 class="panel-heading"><i class="bi bi-people mr-2"></i>Connections</h2>
+                            <span id="connection-count" class="text-[10px] font-semibold bg-white/5 border border-white/10 text-text/60 px-2 py-0.5 rounded-full">0</span>
+                        </div>
+                        <span id="security-pill" class="text-[10px] font-medium text-accent/80 flex items-center gap-1">
+                            <i class="bi bi-shield-check"></i> E2E
+                        </span>
                     </div>
-                    <ul id="peer-list" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
-                        <li class="text-xs text-text/40 italic text-center py-4">No active connections</li>
+
+                    <ul id="peer-list" class="space-y-2.5 max-h-56 overflow-y-auto scrollbar-thin">
+                        <li class="text-xs text-text/40 italic text-center py-6 flex flex-col items-center gap-2">
+                            <i class="bi bi-diagram-3 text-lg text-text/20"></i>
+                            <span>No active connections.<br>Connect to a nearby device to start transferring.</span>
+                        </li>
                     </ul>
                 </section>
 
-                <!-- Room Chat -->
+                <!-- Room Chat Card -->
                 <section class="panel flex flex-col">
                     <div class="flex items-center justify-between mb-3">
-                        <h2 class="panel-heading"><i class="bi bi-chat-dots mr-2"></i>Room Chat</h2>
-                        <span id="chat-presence" class="text-[10px] bg-white/5 text-text/40 px-2 py-0.5 rounded-full">Offline</span>
+                        <div class="flex items-center gap-2">
+                            <h2 class="panel-heading"><i class="bi bi-chat-dots mr-2"></i>Room Chat</h2>
+                            <span id="chat-presence" class="text-[10px] bg-white/5 text-text/40 px-2 py-0.5 rounded-full font-medium">Offline</span>
+                        </div>
+                        <button id="clear-chat-btn" class="text-[10px] text-text/40 hover:text-white transition-colors" title="Clear chat messages">
+                            Clear
+                        </button>
                     </div>
-                    <ul id="chat-messages" class="flex-1 space-y-2 max-h-52 overflow-y-auto scrollbar-thin mb-3 min-h-[120px]">
-                        <li class="text-xs text-text/30 italic text-center py-6">Chat messages will appear here</li>
+
+                    <!-- Chat Messages Feed -->
+                    <ul id="chat-messages" class="flex-1 space-y-2 max-h-60 overflow-y-auto scrollbar-thin mb-3 min-h-[140px] p-1">
+                        <li class="text-xs text-text/30 italic text-center py-8">
+                            Chat messages between connected devices appear here
+                        </li>
                     </ul>
-                    <!-- Automatic display col adjust for input and send button -->
-                    <div class="chat-input-row flex flex-wrap gap-2 items-center">
-                        <input type="text" id="chat-input" placeholder="Type a message..."
-                            class="input-field flex-1 min-w-0 text-xs">
-                        <button id="chat-send" class="icon-btn-primary flex-none">
-                            <i class="bi bi-send"></i>
+
+                    <!-- Quick Reactions -->
+                    <div class="flex items-center justify-around gap-1 mb-2.5 pt-2 border-t border-white/6 text-sm">
+                        <button class="chat-quick-reaction hover:scale-125 transition-transform" data-emoji="👍" title="Thumbs up">👍</button>
+                        <button class="chat-quick-reaction hover:scale-125 transition-transform" data-emoji="🚀" title="Rocket">🚀</button>
+                        <button class="chat-quick-reaction hover:scale-125 transition-transform" data-emoji="❤️" title="Love">❤️</button>
+                        <button class="chat-quick-reaction hover:scale-125 transition-transform" data-emoji="👋" title="Wave">👋</button>
+                        <button class="chat-quick-reaction hover:scale-125 transition-transform" data-emoji="🎉" title="Party">🎉</button>
+                    </div>
+
+                    <!-- Chat Input Row -->
+                    <div class="chat-input-row flex gap-2 items-center">
+                        <input
+                            type="text"
+                            id="chat-input"
+                            placeholder="Type an encrypted message..."
+                            class="input-field flex-1 min-w-0 text-xs"
+                            autocomplete="off"
+                        >
+                        <button id="chat-send" class="icon-btn-primary flex-none" title="Send message (Enter)">
+                            <i class="bi bi-send text-xs"></i>
                         </button>
                     </div>
                 </section>
@@ -396,24 +558,55 @@
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="mt-auto border-t border-white/5">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <span class="text-[11px] text-text/30">Made with <span class="text-red-400">❤️</span> by <a href="https://github.com/infinitode" class="hover:text-primary transition-colors">Infinitode</a></span>
-            <span class="text-[10px] text-text/20 font-mono">v2.0.0</span>
+    <!-- Site Footer -->
+    <footer class="mt-auto border-t border-white/5 bg-background/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span class="text-xs text-text/40 flex items-center gap-1.5">
+                LocalShare • Direct P2P File Sharing & Messaging
+            </span>
+            <div class="flex items-center gap-4 text-xs text-text/40">
+                <span class="font-mono text-[11px] text-text/30">v2.1.0</span>
+                <span>•</span>
+                <span class="text-accent flex items-center gap-1"><i class="bi bi-lock-fill"></i> DTLS WebRTC</span>
+            </div>
         </div>
     </footer>
 
-    <!-- Handshake Modal -->
-    <div id="handshake-modal" class="fixed inset-0 z-[9998] hidden items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div class="modal-card w-full max-w-sm mx-4">
+    <!-- ═══════════════════════════════════════════
+         MODALS & OVERLAYS
+         ═══════════════════════════════════════════ -->
+
+    <!-- 1. Handshake / Connection Request Modal -->
+    <div id="handshake-modal" class="fixed inset-0 z-[9998] hidden items-center justify-center bg-black/80 backdrop-blur-md px-4">
+        <div class="modal-card w-full max-w-sm">
             <div class="text-center mb-4">
-                <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3">
-                    <i class="bi bi-person-plus text-2xl text-primary"></i>
+                <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="bi bi-person-check text-2xl text-primary" id="handshake-icon"></i>
                 </div>
-                <h3 class="text-base font-semibold text-white">Connection Request</h3>
+                <h3 class="text-lg font-bold text-white">Connection Request</h3>
+                <p id="handshake-message" class="text-sm text-text/70 mt-1"></p>
             </div>
-            <p id="handshake-message" class="text-sm text-text/60 text-center mb-5"></p>
+
+            <!-- Cryptographic Security Code Box -->
+            <div class="p-3 rounded-xl bg-white/5 border border-white/10 mb-4 text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-text/40 mb-1">
+                    Security Verification Code
+                </p>
+                <div class="flex items-center justify-center gap-2">
+                    <span id="handshake-security-code" class="text-lg font-mono font-bold text-accent tracking-widest">----</span>
+                    <span id="handshake-security-emojis" class="text-sm"></span>
+                </div>
+                <p class="text-[10px] text-text/40 mt-1">Confirm this matches the other device's screen</p>
+            </div>
+
+            <!-- Always Trust Option -->
+            <div class="flex items-center gap-2 mb-4 px-1">
+                <input type="checkbox" id="handshake-remember-checkbox" class="rounded accent-primary cursor-pointer">
+                <label for="handshake-remember-checkbox" class="text-xs text-text/60 cursor-pointer select-none">
+                    Remember and auto-accept this device
+                </label>
+            </div>
+
             <div class="flex gap-3">
                 <button id="handshake-reject" class="btn-ghost flex-1">Decline</button>
                 <button id="handshake-accept" class="btn-primary flex-1">Accept</button>
@@ -421,10 +614,107 @@
         </div>
     </div>
 
-    <!-- PeerJS Config (optional override) -->
+    <!-- 2. Incoming File Offer Modal -->
+    <div id="file-offer-modal" class="fixed inset-0 z-[9998] hidden items-center justify-center bg-black/80 backdrop-blur-md px-4">
+        <div class="modal-card w-full max-w-md">
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <i class="bi bi-cloud-download text-2xl text-accent"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Incoming File Transfer</h3>
+                <p id="file-offer-sender" class="text-xs text-text/60 mt-0.5"></p>
+            </div>
+
+            <!-- File Offer List -->
+            <div id="file-offer-list" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin p-2 rounded-xl bg-white/5 border border-white/10 mb-4"></div>
+
+            <!-- Auto-Accept for this device -->
+            <div class="flex items-center gap-2 mb-4 px-1">
+                <input type="checkbox" id="file-offer-auto-checkbox" class="rounded accent-accent cursor-pointer">
+                <label for="file-offer-auto-checkbox" class="text-xs text-text/60 cursor-pointer select-none">
+                    Auto-accept future transfers from this device
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="file-offer-reject" class="btn-ghost flex-1">Decline</button>
+                <button id="file-offer-accept" class="btn-primary flex-1">Download Files</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Room Share & Switcher Modal -->
+    <div id="room-modal" class="fixed inset-0 z-[9998] hidden items-center justify-center bg-black/80 backdrop-blur-md px-4">
+        <div class="modal-card w-full max-w-md">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-share text-lg text-primary"></i>
+                    <h3 class="text-base font-bold text-white">Share Room & Link</h3>
+                </div>
+                <button id="room-modal-close" class="icon-btn text-text/50 hover:text-white">
+                    <i class="bi bi-x-lg text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Room QR Code -->
+            <div class="flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                <canvas id="room-qr-canvas" width="160" height="160" class="rounded-lg shadow-md mb-2"></canvas>
+                <p class="text-xs text-text/60 text-center">Scan with mobile camera to join this room instantly</p>
+            </div>
+
+            <!-- Copy Direct Invite Link -->
+            <div class="mb-4">
+                <label class="block text-[11px] uppercase font-bold text-text/40 mb-1">Room Invite Link</label>
+                <div class="flex gap-2">
+                    <input type="text" id="room-link-input" readonly class="input-field text-xs font-mono text-text/80 bg-white/5">
+                    <button id="copy-room-link-btn" class="btn-primary-sm whitespace-nowrap">
+                        <i class="bi bi-clipboard"></i> Copy Link
+                    </button>
+                </div>
+            </div>
+
+            <!-- Switch to Custom Room -->
+            <div class="pt-3 border-t border-white/10">
+                <label class="block text-[11px] uppercase font-bold text-text/40 mb-1">Switch or Create Room</label>
+                <div class="flex gap-2">
+                    <input type="text" id="modal-room-input" placeholder="Enter new room name or code..." class="input-field text-xs font-mono">
+                    <button id="modal-room-switch-btn" class="btn-ghost text-xs whitespace-nowrap">
+                        <i class="bi bi-arrow-repeat"></i> Switch
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. File Preview Modal -->
+    <div id="file-preview-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/85 backdrop-blur-md px-4">
+        <div class="modal-card w-full max-w-2xl flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                <div class="flex items-center gap-2 min-w-0">
+                    <i id="preview-modal-icon" class="bi bi-file-earmark text-primary"></i>
+                    <h3 id="preview-modal-title" class="text-sm font-semibold text-white truncate">Preview</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="preview-modal-download" download class="btn-primary-sm text-xs">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                    <button id="preview-modal-close" class="icon-btn text-text/50 hover:text-white">
+                        <i class="bi bi-x-lg text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview Body Content -->
+            <div id="preview-modal-body" class="flex-1 overflow-auto p-2 flex items-center justify-center text-center">
+                <!-- Injected dynamically: image, text, or audio -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PeerJS Config Override -->
     <script>
         window.LOCALSHARE_CONFIG = {
-            // peer: { host: 'local-share.netlify.app', port: 9000, path: '/peerjs', secure: true }
+            // Optional custom STUN/TURN or peer server
         };
     </script>
     <script src="index.js"></script>
