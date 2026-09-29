@@ -1779,22 +1779,22 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
 
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <p class="peer-name truncate">${escapeHtml(data.name)}</p>
+            <div class="flex items-center gap-2 min-w-0">
+              <p class="peer-name truncate min-w-0 flex-1">${escapeHtml(data.name)}</p>
               <span class="security-badge text-[9px] px-1.5 py-0" title="Security Verification Code: verify this matches on both devices">
                 🔒 ${data.security?.code || "OK"}
               </span>
             </div>
 
-            <div class="flex items-center gap-2 mt-0.5">
-              <span id="rtt-${id}" class="text-[10px] font-mono text-text/40 flex items-center gap-1">${rttText}</span>
-              <span class="text-[10px] text-text/20">•</span>
-              <span class="peer-id truncate text-[10px]">${escapeHtml(id.slice(0, 20))}...</span>
+            <div class="flex items-center gap-2 mt-0.5 min-w-0">
+              <span id="rtt-${id}" class="text-[10px] font-mono text-text/40 flex items-center gap-1 flex-shrink-0">${rttText}</span>
+              <span class="text-[10px] text-text/20 flex-shrink-0">•</span>
+              <span class="peer-id truncate text-[10px] min-w-0">${escapeHtml(id.slice(0, 20))}...</span>
             </div>
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 flex-shrink-0">
           <button class="icon-btn text-text/50 hover:text-primary quick-send-peer-btn" title="Send files to this device">
             <i class="bi bi-cloud-arrow-up text-xs"></i>
           </button>
@@ -1877,7 +1877,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
 
-        <button class="btn-connect-sm ${isConnected ? "opacity-50 pointer-events-none" : ""}" ${isConnected ? "disabled" : ""}>
+        <button class="btn-connect-sm flex-shrink-0 ${isConnected ? "opacity-50 pointer-events-none" : ""}" ${isConnected ? "disabled" : ""}>
           ${isConnected ? '<i class="bi bi-check2 text-accent"></i> Linked' : '<i class="bi bi-plug"></i> Connect'}
         </button>
       `;

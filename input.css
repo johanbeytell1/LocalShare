@@ -568,6 +568,8 @@
     font-size: 0.75rem;
     font-family: "JetBrains Mono", monospace;
     font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
     background-color: rgba(16, 185, 129, 0.1);
     color: #34d399;
     border: 1px solid rgba(16, 185, 129, 0.25);
@@ -696,5 +698,10 @@
   }
   .connection-card {
     gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+  }
+  .connection-card .peer-icon {
+    width: 2rem;
+    height: 2rem;
   }
 }
