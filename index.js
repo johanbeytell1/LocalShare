@@ -178,6 +178,9 @@ document.addEventListener("DOMContentLoaded", () => {
       document.head.appendChild(themeMeta);
     }
     themeMeta.content = color;
+
+    // Repaint QR codes so they follow the theme (no-op until peer/room exist)
+    refreshQrCodeColors();
   }
   applyThemeColor(PREFS.themeColor);
 
@@ -460,6 +463,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Application State
   // ═══════════════════════════════════════════
   let peer = null;
+  let currentPeerId = null; // set on peer open; used to repaint QR on theme change
   const connections = {}; // pid -> { conn, name, platform, security, rtt, status, pingTimer }
   let selectedFiles = [];
   const incomingTransfers = {}; // transferId -> transfer
@@ -469,6 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let isHandshakeModalActive = false;
 
   let nearbyRoomId = "local";
+  let isRoomResolved = false; // flips true once initDiscovery resolves the room
   let nearbyScanTimer = null;
   let roomHostPeer = null;
   let isRoomHost = false;
@@ -825,6 +830,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function initDiscovery() {
     nearbyRoomId = await resolveNearbyRoomId();
+    isRoomResolved = true;
     console.log("LocalShare Room ID:", nearbyRoomId);
 
     // Sync room ID to URL hash without reload
@@ -845,16 +851,37 @@ document.addEventListener("DOMContentLoaded", () => {
       const roomUrl = `${window.location.origin}${window.location.pathname}#room=${nearbyRoomId}`;
       roomLinkInput.value = roomUrl;
     }
-    if (roomQrCanvas && typeof QRCode !== "undefined") {
-      try {
-        const roomUrl = `${window.location.origin}${window.location.pathname}#room=${nearbyRoomId}`;
-        QRCode.toCanvas(roomQrCanvas, roomUrl, {
+    renderRoomQrCode();
+  }
+
+  function renderRoomQrCode() {
+    if (!roomQrCanvas || typeof QRCode === "undefined") return;
+    try {
+      const roomUrl = `${window.location.origin}${window.location.pathname}#room=${nearbyRoomId}`;
+      QRCode.toCanvas(roomQrCanvas, roomUrl, {
+        width: 160,
+        margin: 1,
+        color: { dark: PREFS.themeColor, light: "#000000" },
+      });
+    } catch (_e) {}
+  }
+
+  // Repaints every QR code with the current theme accent. Called from
+  // applyThemeColor (covers desktop + mobile swatches). Safe to call before
+  // the peer engine is online — each render is individually guarded.
+  // (Function declaration hoists, so the early applyThemeColor() call is safe.)
+  function refreshQrCodeColors() {
+    if (typeof QRCode === "undefined") return;
+    try {
+      if (currentPeerId && qrCodeCanvas && qrCodeCanvas.isConnected) {
+        QRCode.toCanvas(qrCodeCanvas, currentPeerId, {
           width: 160,
           margin: 1,
           color: { dark: PREFS.themeColor, light: "#000000" },
         });
-      } catch (_e) {}
-    }
+      }
+    } catch (_e) {}
+    if (isRoomResolved) renderRoomQrCode();
   }
 
   function initPeer() {
@@ -877,6 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     peer.on("open", (id) => {
       console.log("Local Peer Online:", id);
+      currentPeerId = id;
 
       if (deviceStatusDot) deviceStatusDot.className = "status-dot online";
       setNetworkDotClass("bg-accent animate-pulse");
@@ -1042,6 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function displayQrCode(id) {
+    if (id) currentPeerId = id;
     if (!qrCodeCanvas || !qrCodeContainer) return;
     if (typeof QRCode === "undefined") {
       qrCodeContainer.innerHTML = `<p class="text-xs text-text/40 font-mono">${escapeHtml(id)}</p>`;
