@@ -1,0 +1,13 @@
+{
+  "name": "localshare",
+  "version": "2.1.0",
+  "description": "Zero-config peer-to-peer file sharing & messaging — no servers, no limits.",
+  "scripts": {
+    "build:css": "tailwindcss -i input.css -o index.css --minify",
+    "watch:css": "tailwindcss -i input.css -o index.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  }
+}
