@@ -619,3 +619,82 @@
     box-shadow: 0 0 15px 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
 }
+
+/* =========================================================
+   Mobile Responsive Fixes (< 640px)
+   Unlayered on purpose: wins over component-layer styles.
+   ========================================================= */
+@keyframes menu-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+#mobile-menu:not(.hidden) {
+  animation: menu-drop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 639px) {
+  /* Prevent iOS Safari auto-zoom on focus (needs >= 16px) */
+  .input-field,
+  #peer-id-input,
+  #chat-input,
+  #room-custom-input,
+  #modal-room-input,
+  #target-peer-select,
+  select.input-field {
+    font-size: 16px;
+  }
+
+  /* Manual connect: input row on top, action button full-width below */
+  .manual-connect-form {
+    flex-wrap: wrap;
+  }
+  .manual-connect-form .manual-connect-input {
+    flex: 1 1 140px;
+  }
+  .manual-connect-form .manual-connect-button {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  /* Comfortable touch targets for primary actions */
+  #connect-button,
+  #join-room-btn,
+  #send-button,
+  #copy-room-link-btn,
+  #modal-room-switch-btn {
+    min-height: 44px;
+  }
+
+  /* Tighter modal + dropzone spacing on small screens */
+  .modal-card {
+    padding: 1.25rem;
+  }
+  .drop-zone {
+    padding: 1.5rem 1rem;
+  }
+
+  /* Toasts span full width without overflowing */
+  .toast-item {
+    max-width: 100%;
+  }
+  .toast-item span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Transfer + connection cards: let long meta text wrap, not clip */
+  .transfer-card [id$="-meta"] {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .connection-card {
+    gap: 0.625rem;
+  }
+}

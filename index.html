@@ -154,7 +154,7 @@
     </svg>
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2.5 max-w-sm pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-[9999] flex flex-col gap-2.5 pointer-events-none"></div>
 
     <!-- Site Navigation -->
     <nav class="site-nav sticky top-0 z-50">
@@ -166,10 +166,10 @@
                         <img src="/localshare-logo.png" alt="LocalShare" class="w-9 h-9 rounded-xl shadow-lg border border-white/10">
                         <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-background animate-pulse"></span>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <span class="text-base sm:text-lg font-extrabold tracking-tight text-white">LocalShare</span>
-                            <span class="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                            <span class="text-sm sm:text-lg font-extrabold tracking-tight text-white whitespace-nowrap">LocalShare</span>
+                            <span class="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20 whitespace-nowrap">
                                 <i class="bi bi-shield-check"></i> Encrypted P2P
                             </span>
                         </div>
@@ -177,13 +177,13 @@
                     </div>
                 </div>
 
-                <!-- Navigation Controls -->
-                <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Navigation Controls (desktop) -->
+                <div class="hidden md:flex items-center gap-2 sm:gap-3">
                     <!-- Room Info Pill & Switcher -->
-                    <button id="room-badge-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-primary/40 hover:bg-white/10 transition-all text-xs text-text/70" title="Click to share or switch room">
-                        <span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="network-dot"></span>
-                        <span id="network-label" class="font-mono text-[11px] font-medium text-text/80">Room: Initializing...</span>
-                        <i class="bi bi-share text-[11px] text-primary ml-1"></i>
+                    <button id="room-badge-btn" class="js-room-btn flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-primary/40 hover:bg-white/10 transition-all text-xs text-text/70" title="Click to share or switch room">
+                        <span class="js-network-dot w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0" id="network-dot"></span>
+                        <span id="network-label" class="js-network-label font-mono text-[11px] font-medium text-text/80 truncate">Room: Initializing...</span>
+                        <i class="bi bi-share text-[11px] text-primary ml-1 flex-shrink-0"></i>
                     </button>
 
                     <!-- Auto-Accept Files Toggle -->
@@ -217,6 +217,53 @@
                         <i class="bi bi-github"></i>
                     </a>
                 </div>
+
+                <!-- Mobile hamburger button -->
+                <button id="mobile-menu-btn" class="md:hidden icon-btn text-text/70 hover:text-white flex-shrink-0" title="Open menu" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+                    <i id="mobile-menu-icon" class="bi bi-list text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Mobile room sub-bar -->
+            <div class="md:hidden pb-3">
+                <button id="room-badge-btn-mobile" class="js-room-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 active:border-primary/40 active:bg-white/10 transition-all text-xs text-text/70" title="Tap to share or switch room">
+                    <span class="js-network-dot w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+                    <span class="js-network-label font-mono text-[11px] font-medium text-text/80 truncate flex-1 text-left min-w-0">Room: Initializing...</span>
+                    <i class="bi bi-share text-[11px] text-primary flex-shrink-0"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile dropdown menu -->
+        <div id="mobile-menu" class="hidden md:hidden absolute left-3 right-3 top-full z-50 rounded-2xl border border-white/10 bg-[#0b0b0e]/95 backdrop-blur-xl shadow-2xl p-2">
+            <button id="sound-menu-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                <span class="flex items-center gap-2.5 text-sm text-text/80">
+                    <i id="sound-menu-icon" class="bi bi-volume-up text-primary"></i> Sound Chimes
+                </span>
+                <span id="sound-menu-state" class="text-[11px] font-semibold text-accent">On</span>
+            </button>
+            <button id="autoaccept-menu-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                <span class="flex items-center gap-2.5 text-sm text-text/80">
+                    <i id="autoaccept-menu-icon" class="bi bi-shield-lock text-primary"></i> Auto-Accept Files
+                </span>
+                <span id="autoaccept-menu-state" class="text-[11px] font-semibold text-text/50">Off</span>
+            </button>
+            <div class="px-3 pt-2.5 pb-1.5">
+                <p class="text-[10px] uppercase font-bold tracking-wider text-text/40 mb-2">Accent Color</p>
+                <div class="flex flex-wrap gap-2.5">
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#00E5FF" style="background:#00E5FF" title="Electric Cyan" aria-label="Electric Cyan"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#10B981" style="background:#10B981" title="Emerald Green" aria-label="Emerald Green"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#8B5CF6" style="background:#8B5CF6" title="Neon Violet" aria-label="Neon Violet"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#F59E0B" style="background:#F59E0B" title="Solar Amber" aria-label="Solar Amber"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#F43F5E" style="background:#F43F5E" title="Rose Pink" aria-label="Rose Pink"></button>
+                    <button class="theme-color-swatch w-8 h-8 rounded-full border border-white/20 transition-transform active:scale-95" data-color="#3B82F6" style="background:#3B82F6" title="Cyber Blue" aria-label="Cyber Blue"></button>
+                </div>
+            </div>
+            <div class="border-t border-white/10 mt-1 pt-1">
+                <a href="https://github.com/infinitode" target="_blank" rel="noopener" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                    <i class="bi bi-github text-primary"></i>
+                    <span class="text-sm text-text/80">View on GitHub</span>
+                </a>
             </div>
         </div>
     </nav>
@@ -354,7 +401,7 @@
                 <section class="panel">
                     <div class="flex items-center justify-between mb-3.5">
                         <h2 class="panel-heading"><i class="bi bi-cloud-arrow-up mr-2"></i>Send Files</h2>
-                        <span class="text-[10px] text-text/50 font-medium">Encrypted Direct P2P • No Limits</span>
+                        <span class="hidden min-[420px]:block text-[10px] text-text/50 font-medium whitespace-nowrap">Encrypted Direct P2P • No Limits</span>
                     </div>
 
                     <!-- Drop Zone -->

@@ -3,15 +3,26 @@ document.addEventListener("DOMContentLoaded", () => {
   // DOM Elements Selector Helper
   // ═══════════════════════════════════════════
   const $ = (id) => document.getElementById(id);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
   // Core containers & headers
   const toastContainer = $("toast-container");
   const statusEl = $("status");
   const deviceStatusDot = $("device-status-dot");
   const deviceRoleBadge = $("device-role-badge");
-  const networkDot = $("network-dot");
-  const networkLabel = $("network-label");
-  const roomBadgeBtn = $("room-badge-btn");
+  // NOTE: network dot/label + room buttons exist twice (desktop nav + mobile
+  // sub-bar) — always update via the .js-* class helpers below, never by ID.
+  const NETWORK_DOT_BASE = "js-network-dot w-2 h-2 rounded-full flex-shrink-0";
+  function setNetworkDotClass(state) {
+    $$(".js-network-dot").forEach((el) => {
+      el.className = `${NETWORK_DOT_BASE} ${state}`;
+    });
+  }
+  function setNetworkLabel(text) {
+    $$(".js-network-label").forEach((el) => {
+      el.textContent = text;
+    });
+  }
   const autoAcceptToggle = $("auto-accept-toggle");
   const autoAcceptIcon = $("auto-accept-icon");
   const autoAcceptLabel = $("auto-accept-label");
@@ -19,6 +30,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const soundIcon = $("sound-icon");
   const themeBtn = $("theme-btn");
   const themeDropdown = $("theme-dropdown");
+  const mobileMenuBtn = $("mobile-menu-btn");
+  const mobileMenuIcon = $("mobile-menu-icon");
+  const mobileMenu = $("mobile-menu");
+  const soundMenuBtn = $("sound-menu-btn");
+  const soundMenuIcon = $("sound-menu-icon");
+  const soundMenuState = $("sound-menu-state");
+  const autoAcceptMenuBtn = $("autoaccept-menu-btn");
+  const autoAcceptMenuIcon = $("autoaccept-menu-icon");
+  const autoAcceptMenuState = $("autoaccept-menu-state");
 
   // Discovery & Identity
   const peerList = $("peer-list");
@@ -169,6 +189,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.addEventListener("click", () => {
       themeDropdown.classList.add("hidden");
+      closeMobileMenu();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        themeDropdown.classList.add("hidden");
+        closeMobileMenu();
+      }
     });
 
     document.querySelectorAll(".theme-color-swatch").forEach((swatch) => {
@@ -178,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (color) {
           applyThemeColor(color);
           themeDropdown.classList.add("hidden");
+          closeMobileMenu();
           showToast(`Theme updated`, "info");
         }
       });
@@ -250,60 +279,112 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   const sounds = new SoundEngine();
 
-  // Sound toggle button
+  // Sound toggle (desktop button + mobile menu row stay in sync)
   function updateSoundUi() {
-    if (!soundIcon) return;
-    if (PREFS.sound) {
-      soundIcon.className = "bi bi-volume-up";
-      if (soundToggleBtn) soundToggleBtn.title = "Sound Chimes: On";
-    } else {
-      soundIcon.className = "bi bi-volume-mute text-text/40";
-      if (soundToggleBtn) soundToggleBtn.title = "Sound Chimes: Muted";
+    const on = PREFS.sound;
+    if (soundIcon) {
+      soundIcon.className = on ? "bi bi-volume-up" : "bi bi-volume-mute text-text/40";
     }
+    if (soundToggleBtn) {
+      soundToggleBtn.title = on ? "Sound Chimes: On" : "Sound Chimes: Muted";
+    }
+    if (soundMenuIcon) {
+      soundMenuIcon.className = on ? "bi bi-volume-up text-primary" : "bi bi-volume-mute text-text/40";
+    }
+    if (soundMenuState) {
+      soundMenuState.textContent = on ? "On" : "Muted";
+      soundMenuState.className = on
+        ? "text-[11px] font-semibold text-accent"
+        : "text-[11px] font-semibold text-text/50";
+    }
+  }
+  function toggleSound() {
+    PREFS.sound = !PREFS.sound;
+    setStored("sound", PREFS.sound ? "true" : "false");
+    updateSoundUi();
+    showToast(PREFS.sound ? "Audio chimes enabled" : "Audio muted", "info");
+    if (PREFS.sound) sounds.play("message");
   }
   updateSoundUi();
 
   if (soundToggleBtn) {
-    soundToggleBtn.addEventListener("click", () => {
-      PREFS.sound = !PREFS.sound;
-      setStored("sound", PREFS.sound ? "true" : "false");
-      updateSoundUi();
-      showToast(PREFS.sound ? "Audio chimes enabled" : "Audio muted", "info");
-      if (PREFS.sound) sounds.play("message");
-    });
+    soundToggleBtn.addEventListener("click", toggleSound);
+  }
+  if (soundMenuBtn) {
+    soundMenuBtn.addEventListener("click", toggleSound);
   }
 
-  // Auto-Accept toggle
+  // Auto-Accept toggle (desktop pill + mobile menu row stay in sync)
   function updateAutoAcceptUi() {
-    if (!autoAcceptToggle || !autoAcceptIcon || !autoAcceptLabel) return;
-    if (PREFS.autoAccept) {
-      autoAcceptToggle.className =
-        "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-accent/15 border-accent/30 text-accent";
-      autoAcceptIcon.className = "bi bi-shield-check";
-      autoAcceptLabel.textContent = "Auto-Accept: ON";
-      autoAcceptToggle.title = "Auto-accepting file transfers from linked devices";
-    } else {
-      autoAcceptToggle.className =
-        "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white";
-      autoAcceptIcon.className = "bi bi-shield-lock";
-      autoAcceptLabel.textContent = "Auto-Accept: OFF";
-      autoAcceptToggle.title = "Confirm every incoming file transfer (Recommended)";
+    const on = PREFS.autoAccept;
+    if (autoAcceptToggle && autoAcceptIcon && autoAcceptLabel) {
+      autoAcceptToggle.className = on
+        ? "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-accent/15 border-accent/30 text-accent"
+        : "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white";
+      autoAcceptIcon.className = on ? "bi bi-shield-check" : "bi bi-shield-lock";
+      autoAcceptLabel.textContent = on ? "Auto-Accept: ON" : "Auto-Accept: OFF";
+      autoAcceptToggle.title = on
+        ? "Auto-accepting file transfers from linked devices"
+        : "Confirm every incoming file transfer (Recommended)";
     }
+    if (autoAcceptMenuIcon) {
+      autoAcceptMenuIcon.className = on ? "bi bi-shield-check text-accent" : "bi bi-shield-lock text-primary";
+    }
+    if (autoAcceptMenuState) {
+      autoAcceptMenuState.textContent = on ? "On" : "Off";
+      autoAcceptMenuState.className = on
+        ? "text-[11px] font-semibold text-accent"
+        : "text-[11px] font-semibold text-text/50";
+    }
+  }
+  function toggleAutoAccept() {
+    PREFS.autoAccept = !PREFS.autoAccept;
+    setStored("auto_accept", PREFS.autoAccept ? "true" : "false");
+    updateAutoAcceptUi();
+    showToast(
+      PREFS.autoAccept
+        ? "Auto-accepting incoming transfers"
+        : "Manual transfer approval enabled",
+      "info"
+    );
   }
   updateAutoAcceptUi();
 
   if (autoAcceptToggle) {
-    autoAcceptToggle.addEventListener("click", () => {
-      PREFS.autoAccept = !PREFS.autoAccept;
-      setStored("auto_accept", PREFS.autoAccept ? "true" : "false");
-      updateAutoAcceptUi();
-      showToast(
-        PREFS.autoAccept
-          ? "Auto-accepting incoming transfers"
-          : "Manual transfer approval enabled",
-        "info"
-      );
+    autoAcceptToggle.addEventListener("click", toggleAutoAccept);
+  }
+  if (autoAcceptMenuBtn) {
+    autoAcceptMenuBtn.addEventListener("click", toggleAutoAccept);
+  }
+
+  // Mobile hamburger menu (function declarations hoist — safe to call above)
+  function isMobileMenuOpen() {
+    return Boolean(mobileMenu && !mobileMenu.classList.contains("hidden"));
+  }
+  function setMobileMenuOpen(open) {
+    if (!mobileMenu) return;
+    mobileMenu.classList.toggle("hidden", !open);
+    if (mobileMenuBtn) {
+      mobileMenuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      mobileMenuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+      mobileMenuBtn.title = open ? "Close menu" : "Open menu";
+    }
+    if (mobileMenuIcon) {
+      mobileMenuIcon.className = open ? "bi bi-x-lg text-lg" : "bi bi-list text-lg";
+    }
+  }
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+  }
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setMobileMenuOpen(!isMobileMenuOpen());
     });
+  }
+  if (mobileMenu) {
+    // Taps inside the menu shouldn't bubble to the document closer
+    mobileMenu.addEventListener("click", (e) => e.stopPropagation());
   }
 
   // ═══════════════════════════════════════════
@@ -756,9 +837,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateRoomBadgeUi() {
-    if (networkLabel) {
-      networkLabel.textContent = `Room: #${nearbyRoomId.toUpperCase()}`;
-    }
+    setNetworkLabel(`Room: #${nearbyRoomId.toUpperCase()}`);
     if (modalRoomInput) {
       modalRoomInput.value = nearbyRoomId;
     }
@@ -800,7 +879,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Local Peer Online:", id);
 
       if (deviceStatusDot) deviceStatusDot.className = "status-dot online";
-      if (networkDot) networkDot.className = "w-2 h-2 rounded-full bg-accent animate-pulse";
+      setNetworkDotClass("bg-accent animate-pulse");
 
       renderMyDeviceCard(id);
       displayQrCode(id);
@@ -828,7 +907,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     peer.on("disconnected", () => {
       if (deviceStatusDot) deviceStatusDot.className = "status-dot offline";
-      if (networkDot) networkDot.className = "w-2 h-2 rounded-full bg-red-400";
+      setNetworkDotClass("bg-red-400");
       showToast("Signaling disconnected. Auto-reconnecting...", "warning");
 
       setTimeout(() => {
@@ -868,8 +947,8 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <!-- Inline Name Editor Form (Hidden by default) -->
-        <div id="name-edit-form" class="hidden flex gap-2 items-center pt-1">
-          <input type="text" id="name-edit-input" maxlength="32" class="input-field text-xs py-1 px-2.5" value="${escapeHtml(localPeerName)}">
+        <div id="name-edit-form" class="hidden flex flex-wrap gap-2 items-center pt-1">
+          <input type="text" id="name-edit-input" maxlength="32" class="input-field text-xs py-1 px-2.5 flex-1 min-w-[140px]" value="${escapeHtml(localPeerName)}">
           <button id="save-name-btn" class="btn-primary-sm text-xs py-1 px-2.5">Save</button>
           <button id="cancel-name-btn" class="btn-ghost text-xs py-1 px-2">Cancel</button>
         </div>
@@ -1009,11 +1088,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // ═══════════════════════════════════════════
   // Room Management & Switcher Modal
   // ═══════════════════════════════════════════
-  if (roomBadgeBtn && roomModal) {
-    roomBadgeBtn.addEventListener("click", () => {
-      updateRoomBadgeUi();
-      roomModal.classList.remove("hidden");
-      roomModal.classList.add("flex");
+  if (roomModal) {
+    // Wires both the desktop pill and the mobile sub-bar button
+    $$(".js-room-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        closeMobileMenu();
+        updateRoomBadgeUi();
+        roomModal.classList.remove("hidden");
+        roomModal.classList.add("flex");
+      });
     });
   }
 
@@ -2356,13 +2439,13 @@ document.addEventListener("DOMContentLoaded", () => {
       li.className = "transfer-card";
 
       li.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <i class="bi ${getFileIcon(file.name)} text-primary text-base"></i>
-            <span class="text-xs font-semibold text-white truncate max-w-[160px] sm:max-w-[220px]">${escapeHtml(safeName)}</span>
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <i class="bi ${getFileIcon(file.name)} text-primary text-base flex-shrink-0"></i>
+            <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[160px] sm:max-w-[220px]">${escapeHtml(safeName)}</span>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-primary font-medium">→ ${escapeHtml(name)}</span>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-[10px] text-primary font-medium truncate max-w-[80px] min-[420px]:max-w-[120px] sm:max-w-none">→ ${escapeHtml(name)}</span>
             <button class="icon-btn text-text/40 hover:text-red-400 cancel-send-btn" title="Cancel Transfer">
               <i class="bi bi-x text-sm"></i>
             </button>
@@ -2373,7 +2456,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div id="${domId}-bar" class="progress-fill" style="width: 0%"></div>
         </div>
 
-        <div class="flex items-center justify-between mt-2 text-[10px] text-text/50">
+        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
           <span id="${domId}-meta">Computing checksum...</span>
           <div class="flex items-center gap-2 font-mono">
             <span id="${domId}-speed"></span>
@@ -2573,13 +2656,13 @@ document.addEventListener("DOMContentLoaded", () => {
       li.className = "transfer-card";
 
       li.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <i class="bi ${getFileIcon(fileName)} text-accent text-base"></i>
-            <span class="text-xs font-semibold text-white truncate max-w-[160px] sm:max-w-[220px]">${escapeHtml(fileName)}</span>
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <i class="bi ${getFileIcon(fileName)} text-accent text-base flex-shrink-0"></i>
+            <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[160px] sm:max-w-[220px]">${escapeHtml(fileName)}</span>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-accent font-medium">← ${escapeHtml(peerName)}</span>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-[10px] text-accent font-medium truncate max-w-[80px] min-[420px]:max-w-[120px] sm:max-w-none">← ${escapeHtml(peerName)}</span>
             <button class="icon-btn text-text/40 hover:text-red-400 cancel-receive-btn" title="Cancel Receiving">
               <i class="bi bi-x text-sm"></i>
             </button>
@@ -2590,7 +2673,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div id="${domId}-bar" class="progress-fill bg-accent" style="width: 0%"></div>
         </div>
 
-        <div class="flex items-center justify-between mt-2 text-[10px] text-text/50">
+        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
           <span id="${domId}-meta">Receiving file...</span>
           <div class="flex items-center gap-2 font-mono">
             <span id="${domId}-speed"></span>
@@ -2733,7 +2816,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-xs font-bold text-white truncate">${safeName}</p>
-              <div class="flex items-center gap-2 mt-0.5 text-[10px] text-text/50">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[10px] text-text/50">
                 <span class="font-mono">${formatBytes(transfer.totalSize)}</span>
                 <span>•</span>
                 <span>From ${peerName}</span>
@@ -2750,7 +2833,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <i class="bi bi-eye text-xs"></i>
             </button>
             <a href="${url}" download="${safeName}" class="btn-primary-sm text-xs py-1.5 px-3 flex items-center gap-1.5" title="Download to device">
-              <i class="bi bi-download"></i> Save
+              <i class="bi bi-download"></i><span class="hidden sm:inline">Save</span>
             </a>
           </div>
         </div>
