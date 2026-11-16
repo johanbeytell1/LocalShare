@@ -127,6 +127,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Direct LAN Turbo Modal & Indicators
   const sendTransportHint = $("send-transport-hint");
+  const lanLiveBanner = $("lan-live-banner");
+  const lanLiveDot = $("lan-live-dot");
+  const lanLiveTitle = $("lan-live-title");
+  const lanLiveBadge = $("lan-live-badge");
+  const lanLiveSub = $("lan-live-sub");
   const lanTurboModal = $("lan-turbo-modal");
   const lanTurboModalClose = $("lan-turbo-modal-close");
   const lanEngineModePill = $("lan-engine-mode-pill");
@@ -236,6 +241,14 @@ document.addEventListener("DOMContentLoaded", () => {
         themeDropdown.classList.add("hidden");
         closeMobileMenu();
         closeLanTurboModal();
+        if (roomModal && !roomModal.classList.contains("hidden")) {
+          roomModal.classList.add("hidden");
+          roomModal.classList.remove("flex");
+        }
+        if (filePreviewModal && !filePreviewModal.classList.contains("hidden")) {
+          filePreviewModal.classList.add("hidden");
+          filePreviewModal.classList.remove("flex");
+        }
       }
     });
 
@@ -359,9 +372,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const on = PREFS.autoAccept;
     if (autoAcceptToggle && autoAcceptIcon && autoAcceptLabel) {
       autoAcceptToggle.className = on
-        ? "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-accent/15 border-accent/30 text-accent"
-        : "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white";
-      autoAcceptIcon.className = on ? "bi bi-shield-check" : "bi bi-shield-lock";
+        ? "nav-pill bg-accent/15 border-accent/35 text-accent hover:bg-accent/20"
+        : "nav-pill text-text/65 hover:text-white";
+      autoAcceptIcon.className = on ? "bi bi-shield-check flex-shrink-0" : "bi bi-shield-lock flex-shrink-0";
       autoAcceptLabel.textContent = on ? "Auto-Accept: ON" : "Auto-Accept: OFF";
       autoAcceptToggle.title = on
         ? "Auto-accepting file transfers from linked devices"
@@ -1249,25 +1262,27 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderMyDeviceCard(id) {
     if (!statusEl) return;
     const laneCount = getEffectiveDesiredLanes();
+    const turboIcon = lanServerConfig ? "bi-hdd-network-fill" : "bi-lightning-charge-fill";
+    const turboBadgeCls = lanServerConfig ? "lan-badge-tcp" : "lan-badge-direct";
     const turboSummary = lanServerConfig
-      ? `🚀 LAN Server Direct • Raw TCP Pipe + ${laneCount}× WebRTC`
-      : `⚡ Direct LAN Turbo Ready (${laneCount}× Parallel Channels)`;
+      ? `LAN Server • TCP Pipe + ${laneCount}× WebRTC`
+      : `LAN Turbo Ready • ${laneCount}× Channels`;
 
     statusEl.innerHTML = `
       <div class="space-y-3">
         <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0 text-primary shadow-sm">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/25 flex items-center justify-center flex-shrink-0 text-primary shadow-sm">
             <i class="bi ${getPlatformIcon(localPlatform)} text-xl"></i>
           </div>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <span id="device-name-display" class="text-sm font-bold text-white truncate">${escapeHtml(localPeerName)}</span>
-              <button id="edit-name-btn" class="text-text/40 hover:text-primary transition-colors text-xs" title="Rename this device">
+              <button id="edit-name-btn" class="text-text/40 hover:text-primary transition-colors text-xs flex-shrink-0" title="Rename this device">
                 <i class="bi bi-pencil-square"></i>
               </button>
             </div>
-            <p class="text-[11px] font-mono text-text/40 truncate select-all mt-0.5">${escapeHtml(id)}</p>
+            <p class="text-[11px] font-mono text-text/45 truncate select-all mt-0.5">${escapeHtml(id)}</p>
           </div>
 
           <button id="copy-id-btn" class="icon-btn flex-none text-text/60 hover:text-primary" title="Copy Peer ID">
@@ -1282,15 +1297,28 @@ document.addEventListener("DOMContentLoaded", () => {
           <button id="cancel-name-btn" class="btn-ghost text-xs py-1 px-2">Cancel</button>
         </div>
 
-        <div id="discovery-status" class="text-xs text-text/50 space-y-1 pt-1 border-t border-white/5">
-          <div class="flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-            <span>Room: <strong class="text-text/80 font-mono">#${escapeHtml(nearbyRoomId)}</strong> • Auto-discovering devices</span>
+        <div id="discovery-status" class="text-xs text-text/55 space-y-2 pt-2 border-t border-white/[0.06]">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+              <span class="truncate">Room <strong class="text-text/85 font-mono">#${escapeHtml(nearbyRoomId)}</strong></span>
+            </div>
+            <span class="text-[10px] text-text/40 whitespace-nowrap">Auto-discovering</span>
           </div>
-          <div class="text-[10px] text-accent/85 font-mono truncate">${escapeHtml(turboSummary)}</div>
+          <div class="flex items-center justify-between gap-2">
+            <button type="button" id="device-turbo-chip" class="${turboBadgeCls} cursor-pointer hover:brightness-110 transition-all" title="Click to configure Direct LAN Turbo">
+              <i class="bi ${turboIcon}"></i>
+              <span>${escapeHtml(turboSummary)}</span>
+            </button>
+          </div>
         </div>
       </div>
     `;
+
+    const deviceTurboChip = $("device-turbo-chip");
+    if (deviceTurboChip) {
+      deviceTurboChip.addEventListener("click", openLanTurboModal);
+    }
 
     // Copy ID button
     const copyIdBtn = $("copy-id-btn");
@@ -1681,44 +1709,53 @@ document.addEventListener("DOMContentLoaded", () => {
   // ═══════════════════════════════════════════
   // Direct LAN Turbo Session Attachment & Route Badges
   // ═══════════════════════════════════════════
+  function renderRouteBadgeInner(info) {
+    const iconHtml = info.icon ? `<i class="bi ${info.icon}"></i>` : "";
+    return `${iconHtml}<span>${escapeHtml(info.text)}</span>`;
+  }
+
   function getPeerRouteBadgeInfo(pid) {
     const entry = connections[pid];
     if (!entry) {
-      return { cls: "lan-badge-probing", text: "Idle", title: "Disconnected" };
+      return { cls: "lan-badge-probing", icon: "bi-circle", text: "Idle", title: "Disconnected" };
     }
     if (isLanHttpPipeAvailableForPeer(pid)) {
       return {
         cls: "lan-badge-tcp",
-        text: "🚀 LAN TCP Pipe",
+        icon: "bi-hdd-network-fill",
+        text: "LAN TCP Pipe",
         title: "Both devices on local LAN server — raw kernel TCP pipe at full Wi-Fi/Ethernet router link speed",
       };
     }
 
     const st = entry.turboStatus;
     if (!st || st.state === "idle") {
-      return { cls: "lan-badge-probing", text: "P2P", title: "Standard WebRTC DataChannel" };
+      return { cls: "lan-badge-probing", icon: "bi-broadcast", text: "P2P Link", title: "Standard WebRTC DataChannel" };
     }
     if (st.state === "probing-lan") {
       return {
         cls: "lan-badge-probing",
-        text: "🔍 Probing LAN...",
+        icon: "bi-radar",
+        text: "Probing LAN…",
         title: "Testing direct host-to-host local router path (iceServers: [])",
       };
     }
     if (st.state === "probing-wan") {
       return {
         cls: "lan-badge-probing",
-        text: "🔍 Turbo P2P...",
+        icon: "bi-arrow-repeat",
+        text: "Turbo P2P…",
         title: "Negotiating parallel raw direct WebRTC lanes",
       };
     }
     if (st.state === "lan-direct" || st.isLanDirect) {
       const lanes = st.activeLanes || 0;
-      const laneSuffix = lanes > 0 ? ` • ${lanes}×` : "";
+      const laneSuffix = lanes > 0 ? ` · ${lanes}×` : "";
       const routeDetail = st.routeInfo?.detail || "Direct local router UDP/SCTP";
       return {
         cls: "lan-badge-direct",
-        text: `⚡ LAN Direct${laneSuffix}`,
+        icon: "bi-lightning-charge-fill",
+        text: `LAN Direct${laneSuffix}`,
         title: `${routeDetail} (${lanes} parallel raw lanes, bypasses PeerServer)`,
       };
     }
@@ -1726,27 +1763,31 @@ document.addEventListener("DOMContentLoaded", () => {
       const lanes = st.activeLanes || 0;
       return {
         cls: "lan-badge-wan",
-        text: lanes > 0 ? `🌐 Direct P2P • ${lanes}×` : "🌐 Direct P2P",
+        icon: "bi-globe2",
+        text: lanes > 0 ? `Direct P2P · ${lanes}×` : "Direct P2P",
         title: `${st.routeInfo?.detail || "Direct WAN WebRTC"} (${lanes} raw turbo lanes)`,
       };
     }
     if (st.state === "relayed") {
       return {
         cls: "lan-badge-relay",
-        text: "☁️ Relayed",
+        icon: "bi-cloud-fill",
+        text: "Relayed",
         title: "TURN relay path (not on same LAN)",
       };
     }
     if (st.state === "lan-strict-blocked") {
       return {
         cls: "lan-badge-relay",
-        text: "🛡️ LAN Blocked",
+        icon: "bi-shield-exclamation",
+        text: "LAN Blocked",
         title: "Strict LAN-Only Mode enabled and no direct LAN route was found",
       };
     }
     return {
       cls: "lan-badge-probing",
-      text: "🔌 PeerJS",
+      icon: "bi-plug-fill",
+      text: "PeerJS",
       title: "Standard PeerJS compatibility channel",
     };
   }
@@ -1755,23 +1796,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const entries = Object.entries(connections);
     let lanDirectCount = 0;
     let lanTcpCount = 0;
+    let wanTurboCount = 0;
+    let probingCount = 0;
     let maxLanes = 0;
+    let bestRtt = null;
 
     entries.forEach(([pid, entry]) => {
+      const rtt = entry.turboStatus?.routeInfo?.rttMs ?? entry.rtt;
+      if (typeof rtt === "number" && rtt >= 0) {
+        bestRtt = bestRtt === null ? rtt : Math.min(bestRtt, rtt);
+      }
+
       if (isLanHttpPipeAvailableForPeer(pid)) {
         lanTcpCount += 1;
         lanDirectCount += 1;
       } else if (entry.turboStatus && entry.turboStatus.isLanDirect) {
         lanDirectCount += 1;
         maxLanes = Math.max(maxLanes, entry.turboStatus.activeLanes || 0);
+      } else if (entry.turboStatus && entry.turboStatus.state === "wan-p2p") {
+        wanTurboCount += 1;
+        maxLanes = Math.max(maxLanes, entry.turboStatus.activeLanes || 0);
+      } else if (
+        entry.turboStatus &&
+        (entry.turboStatus.state === "probing-lan" || entry.turboStatus.state === "probing-wan")
+      ) {
+        probingCount += 1;
       }
     });
 
+    const isLanHot = lanTcpCount > 0 || lanDirectCount > 0;
+    const activeLanes = maxLanes || getEffectiveDesiredLanes();
+
     const labelText =
       lanTcpCount > 0
-        ? "LAN TCP Pipe"
+        ? "LAN TCP"
         : lanDirectCount > 0
-          ? `LAN Direct${maxLanes > 0 ? ` ${maxLanes}×` : ""}`
+          ? `LAN Direct ${activeLanes}×`
           : lanServerConfig
             ? "LAN Server"
             : PREFS.strictLanOnly
@@ -1782,16 +1842,85 @@ document.addEventListener("DOMContentLoaded", () => {
       el.textContent = labelText;
     });
 
+    $$(".lan-nav-pill").forEach((btn) => {
+      btn.classList.toggle("is-lan-active", isLanHot);
+    });
+
     if (sendTransportHint) {
       if (lanTcpCount > 0) {
-        sendTransportHint.textContent = "🚀 Direct LAN TCP Pipe • Router Link Speed";
-        sendTransportHint.className = "hidden min-[420px]:block text-[10px] text-accent font-semibold whitespace-nowrap";
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-tcp";
+        sendTransportHint.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>LAN TCP Pipe</span>';
       } else if (lanDirectCount > 0) {
-        sendTransportHint.textContent = `⚡ LAN Direct (${maxLanes || getEffectiveDesiredLanes()}× Raw Turbo) • Wi-Fi Link Speed`;
-        sendTransportHint.className = "hidden min-[420px]:block text-[10px] text-accent font-semibold whitespace-nowrap";
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-direct";
+        sendTransportHint.innerHTML = `<i class="bi bi-lightning-charge-fill"></i><span>LAN Direct · ${activeLanes}×</span>`;
+      } else if (wanTurboCount > 0) {
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-wan";
+        sendTransportHint.innerHTML = `<i class="bi bi-globe2"></i><span>Direct P2P · ${activeLanes}×</span>`;
       } else {
-        sendTransportHint.textContent = "Encrypted Direct P2P • No Limits";
-        sendTransportHint.className = "hidden min-[420px]:block text-[10px] text-text/50 font-medium whitespace-nowrap";
+        sendTransportHint.className =
+          "hidden sm:inline-flex items-center gap-1 text-[10px] text-text/55 font-medium px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] whitespace-nowrap";
+        sendTransportHint.innerHTML = '<i class="bi bi-shield-check text-primary"></i><span>Encrypted P2P</span>';
+      }
+    }
+
+    // Live telemetry banner inside Send Files card (appears cleanly when ≥1 peer is connected)
+    if (lanLiveBanner) {
+      if (entries.length === 0) {
+        lanLiveBanner.classList.add("hidden");
+      } else {
+        lanLiveBanner.classList.remove("hidden");
+        const rttNote = bestRtt !== null ? ` • ${bestRtt < 1 ? "<1" : Math.round(bestRtt)}ms RTT` : "";
+        const peerNote = entries.length === 1 ? entries[0][1].name : `${entries.length} linked devices`;
+
+        if (lanTcpCount > 0) {
+          lanLiveBanner.classList.remove("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct LAN TCP Pipe Active";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-tcp";
+            lanLiveBadge.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>Kernel TCP</span>';
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Local router direct stream${rttNote}`;
+          }
+        } else if (lanDirectCount > 0) {
+          lanLiveBanner.classList.remove("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct LAN Turbo Locked";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-direct";
+            lanLiveBadge.innerHTML = `<i class="bi bi-lightning-charge-fill"></i><span>${activeLanes}× Raw Lanes</span>`;
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Local Wi-Fi/router link, PeerServer bypassed${rttNote}`;
+          }
+        } else if (wanTurboCount > 0) {
+          lanLiveBanner.classList.add("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-sky-400 animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct P2P Turbo Active";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-wan";
+            lanLiveBadge.innerHTML = `<i class="bi bi-globe2"></i><span>${activeLanes}× P2P</span>`;
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Multi-lane encrypted WebRTC${rttNote}`;
+          }
+        } else {
+          lanLiveBanner.classList.add("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0";
+          if (lanLiveTitle) {
+            lanLiveTitle.textContent = probingCount > 0 ? "Probing Direct LAN Route…" : "Encrypted P2P Connected";
+          }
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-probing";
+            lanLiveBadge.innerHTML = probingCount > 0
+              ? '<i class="bi bi-radar"></i><span>Testing LAN</span>'
+              : '<i class="bi bi-plug-fill"></i><span>Standard</span>';
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • ${probingCount > 0 ? "Checking local router host-to-host path" : "Encrypted peer channel ready"}${rttNote}`;
+          }
+        }
       }
     }
 
@@ -1851,9 +1980,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const badgeEl = document.getElementById(`route-badge-${pid}`);
         if (badgeEl) {
           const info = getPeerRouteBadgeInfo(pid);
-          badgeEl.className = info.cls;
-          badgeEl.textContent = info.text;
-          badgeEl.title = info.title;
+          badgeEl.className = `${info.cls} peer-route-badge-btn cursor-pointer hover:brightness-110 transition-all`;
+          badgeEl.innerHTML = renderRouteBadgeInner(info);
+          badgeEl.title = `${info.title} (Click to inspect route)`;
+          const cardEl = typeof badgeEl.closest === "function" ? badgeEl.closest(".peer-conn-card") : null;
+          if (cardEl) {
+            cardEl.classList.toggle("is-lan", Boolean(snapshot.isLanDirect || isLanHttpPipeAvailableForPeer(pid)));
+          }
         } else {
           updatePeerListUi();
         }
@@ -2145,9 +2278,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const el = document.getElementById(`rtt-${pid}`);
     if (el) {
       const color = rtt < 15 ? "text-accent" : rtt < 60 ? "text-emerald-400" : rtt < 150 ? "text-yellow-400" : "text-red-400";
-      el.className = `text-[10px] font-mono font-medium ${color} flex items-center gap-1`;
-      el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current"></span>${rtt}ms`;
+      el.className = `text-[10px] font-mono tabular-nums font-medium ${color} inline-flex items-center gap-1 flex-shrink-0`;
+      el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0"></span><span>${rtt < 1 ? "<1" : Math.round(rtt)}ms</span>`;
     }
+    updateGlobalLanIndicators();
   }
 
   function requestConnection(remoteId) {
@@ -2338,8 +2472,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const entries = Object.entries(connections);
     if (entries.length === 0) {
       peerList.innerHTML = `
-        <li class="text-xs text-text/40 italic text-center py-6 flex flex-col items-center gap-2">
-          <i class="bi bi-diagram-3 text-lg text-text/20"></i>
+        <li class="text-xs text-text/45 italic text-center py-6 flex flex-col items-center gap-2">
+          <div class="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+            <i class="bi bi-diagram-3 text-base text-text/30"></i>
+          </div>
           <span>No active connections.<br>Connect to a nearby device to start transferring.</span>
         </li>
       `;
@@ -2349,48 +2485,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
     entries.forEach(([id, data]) => {
       const li = document.createElement("li");
-      li.className = "connection-card";
+      const isLan = Boolean(isLanHttpPipeAvailableForPeer(id) || data.turboStatus?.isLanDirect);
+      li.className = `peer-conn-card${isLan ? " is-lan" : ""}`;
 
       const rttColor = data.rtt && data.rtt < 15 ? "bg-accent" : "bg-emerald-400";
-      const rttText = data.rtt
-        ? `<span class="w-1.5 h-1.5 rounded-full ${rttColor}"></span>${data.rtt}ms`
-        : `<span class="w-1.5 h-1.5 rounded-full bg-text/30"></span>--`;
+      const rttText =
+        typeof data.rtt === "number"
+          ? `<span class="w-1.5 h-1.5 rounded-full ${rttColor} flex-shrink-0"></span><span>${data.rtt < 1 ? "<1" : data.rtt}ms</span>`
+          : `<span class="w-1.5 h-1.5 rounded-full bg-text/30 flex-shrink-0"></span><span>--</span>`;
       const platformIcon = getPlatformIcon(data.platform);
       const badge = getPeerRouteBadgeInfo(id);
 
       li.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="flex items-center gap-2.5 min-w-0">
           <div class="peer-icon">
             <i class="bi ${platformIcon} text-base"></i>
           </div>
 
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <p class="peer-name truncate min-w-0 flex-1">${escapeHtml(data.name)}</p>
-              <span class="security-badge text-[9px] px-1.5 py-0" title="Security Verification Code: verify this matches on both devices">
-                🔒 ${data.security?.code || "OK"}
-              </span>
-            </div>
+            <p class="peer-name truncate">${escapeHtml(data.name)}</p>
+            <p class="text-[10px] font-mono text-text/40 truncate">${escapeHtml(id.slice(-8))}</p>
+          </div>
 
-            <div class="flex flex-wrap items-center gap-1.5 mt-1 min-w-0">
-              <span id="route-badge-${escapeHtml(id)}" class="${badge.cls}" title="${escapeHtml(badge.title)}">${escapeHtml(badge.text)}</span>
-              <span id="rtt-${escapeHtml(id)}" class="text-[10px] font-mono text-text/40 flex items-center gap-1 flex-shrink-0">${rttText}</span>
-            </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-accent peer-speedtest-btn" title="Run LAN link speed test with this device">
+              <i class="bi bi-speedometer2 text-xs"></i>
+            </button>
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-primary quick-send-peer-btn" title="Send files to this device">
+              <i class="bi bi-cloud-arrow-up text-xs"></i>
+            </button>
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-red-400 disconnect-btn" title="Disconnect device">
+              <i class="bi bi-x-lg text-[11px]"></i>
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <button class="icon-btn text-text/50 hover:text-accent peer-speedtest-btn" title="Run LAN link speed test with this device">
-            <i class="bi bi-speedometer2 text-xs"></i>
-          </button>
-          <button class="icon-btn text-text/50 hover:text-primary quick-send-peer-btn" title="Send files to this device">
-            <i class="bi bi-cloud-arrow-up text-xs"></i>
-          </button>
-          <button class="icon-btn text-text/50 hover:text-red-400 disconnect-btn" title="Disconnect device">
-            <i class="bi bi-x-lg text-xs"></i>
-          </button>
+        <div class="peer-conn-footer">
+          <div class="flex items-center gap-2 min-w-0 flex-wrap">
+            <button type="button" id="route-badge-${escapeHtml(id)}" class="${badge.cls} peer-route-badge-btn cursor-pointer hover:brightness-110 transition-all" title="${escapeHtml(badge.title)} (Click to inspect route)">
+              ${renderRouteBadgeInner(badge)}
+            </button>
+            <span id="rtt-${escapeHtml(id)}" class="text-[10px] font-mono tabular-nums text-text/50 inline-flex items-center gap-1 flex-shrink-0">${rttText}</span>
+          </div>
+
+          <span class="security-badge flex-shrink-0" title="Security Verification Code: verify this matches on both devices">
+            <i class="bi bi-shield-lock-fill text-[9px]"></i>
+            <span>${escapeHtml(data.security?.code || "OK")}</span>
+          </span>
         </div>
       `;
+
+      li.querySelector(".peer-route-badge-btn")?.addEventListener("click", () => {
+        openLanTurboModal();
+      });
 
       li.querySelector(".disconnect-btn")?.addEventListener("click", () => {
         window.disconnectPeer(id);
@@ -2446,11 +2593,11 @@ document.addEventListener("DOMContentLoaded", () => {
           ? lanServerConfig.lanIps.map((ip) => `http://${ip}:${lanServerConfig.port}`).join(", ")
           : window.location.origin;
         lanEngineModePill.className = "lan-badge-tcp";
-        lanEngineModePill.textContent = "🚀 LAN Server Active";
+        lanEngineModePill.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>LAN Server Active</span>';
         lanEngineDesc.textContent = `Offline LAN discovery + Direct Raw TCP/HTTP Pipe + Multi-Lane WebRTC Turbo enabled. Open ${ips} on other Wi-Fi devices.`;
       } else {
         lanEngineModePill.className = "lan-badge-direct";
-        lanEngineModePill.textContent = "⚡ Browser LAN Turbo";
+        lanEngineModePill.innerHTML = '<i class="bi bi-lightning-charge-fill"></i><span>Browser LAN Turbo</span>';
         lanEngineDesc.textContent =
           "Peers on the same Wi-Fi/LAN automatically upgrade to parallel raw UDP/SCTP host-to-host channels directly across your local router — zero PeerServer data relay and zero BinaryPack overhead.";
       }
@@ -2482,18 +2629,18 @@ document.addEventListener("DOMContentLoaded", () => {
             : "";
 
           const li = document.createElement("li");
-          li.className = "p-2.5 rounded-xl bg-white/4 border border-white/8 flex items-center justify-between gap-2";
+          li.className = "p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-2.5";
           li.innerHTML = `
             <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold text-white truncate">${escapeHtml(data.name)}</span>
-                <span class="${badge.cls}">${escapeHtml(badge.text)}</span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-semibold text-white truncate max-w-[160px]">${escapeHtml(data.name)}</span>
+                <span class="${badge.cls}">${renderRouteBadgeInner(badge)}</span>
               </div>
-              <p class="text-[10px] font-mono text-text/50 truncate mt-0.5">
-                ${escapeHtml(routeDetail)}${rttVal ? ` • ${rttVal}ms` : ""}${escapeHtml(lastBench)}
+              <p class="text-[10px] font-mono tabular-nums text-text/50 truncate mt-1">
+                ${escapeHtml(routeDetail)}${typeof rttVal === "number" ? ` • ${rttVal < 1 ? "<1" : Math.round(rttVal)}ms` : ""}${escapeHtml(lastBench)}
               </p>
             </div>
-            <button type="button" class="btn-connect-sm text-[10px] py-1 px-2 run-peer-bench-btn">
+            <button type="button" class="btn-connect-sm text-[10px] py-1 px-2.5 run-peer-bench-btn flex-shrink-0">
               <i class="bi bi-speedometer2"></i> Test
             </button>
           `;
@@ -2588,6 +2735,27 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   if (lanTurboModalClose) {
     lanTurboModalClose.addEventListener("click", closeLanTurboModal);
+  }
+  if (lanTurboModal) {
+    lanTurboModal.addEventListener("click", (e) => {
+      if (e.target === lanTurboModal) closeLanTurboModal();
+    });
+  }
+  if (roomModal) {
+    roomModal.addEventListener("click", (e) => {
+      if (e.target === roomModal) {
+        roomModal.classList.add("hidden");
+        roomModal.classList.remove("flex");
+      }
+    });
+  }
+  if (filePreviewModal) {
+    filePreviewModal.addEventListener("click", (e) => {
+      if (e.target === filePreviewModal) {
+        filePreviewModal.classList.add("hidden");
+        filePreviewModal.classList.remove("flex");
+      }
+    });
   }
   $$(".lan-lanes-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -3286,15 +3454,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // ═══════════════════════════════════════════
   function getTransferBadgeHtml(transport, lanes) {
     if (transport === "lan-tcp") {
-      return '<span class="lan-badge-tcp">🚀 LAN TCP</span>';
+      return '<span class="lan-badge-tcp"><i class="bi bi-hdd-network-fill"></i><span>LAN TCP</span></span>';
     }
     if (transport === "lan-direct") {
-      return `<span class="lan-badge-direct">⚡ LAN ${lanes || 1}×</span>`;
+      return `<span class="lan-badge-direct"><i class="bi bi-lightning-charge-fill"></i><span>LAN · ${lanes || 1}×</span></span>`;
     }
     if (transport === "wan-turbo" || transport === "wan-p2p") {
-      return `<span class="lan-badge-wan">🌐 P2P ${lanes || 1}×</span>`;
+      return `<span class="lan-badge-wan"><i class="bi bi-globe2"></i><span>P2P · ${lanes || 1}×</span></span>`;
     }
-    return '<span class="lan-badge-probing">🔌 PeerJS</span>';
+    return '<span class="lan-badge-probing"><i class="bi bi-plug-fill"></i><span>PeerJS</span></span>';
   }
 
   async function streamFile(file, peerData) {
@@ -3349,29 +3517,33 @@ document.addEventListener("DOMContentLoaded", () => {
       li.className = "transfer-card";
 
       li.innerHTML = `
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <i class="bi ${getFileIcon(file.name)} text-primary text-base flex-shrink-0"></i>
-            <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[150px] sm:max-w-[200px]">${escapeHtml(safeName)}</span>
-            <span id="${domId}-transport">${getTransferBadgeHtml(initialTransport, initialLanes)}</span>
+        <div class="flex items-start justify-between gap-2.5 mb-2.5">
+          <div class="flex items-start gap-2.5 min-w-0 flex-1">
+            <div class="w-8 h-8 rounded-lg bg-primary/12 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary mt-0.5">
+              <i class="bi ${getFileIcon(file.name)} text-sm"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold text-white truncate">${escapeHtml(safeName)}</p>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                <span id="${domId}-transport">${getTransferBadgeHtml(initialTransport, initialLanes)}</span>
+                <span class="text-[10px] text-primary/90 font-medium truncate max-w-[140px]">→ ${escapeHtml(name)}</span>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="text-[10px] text-primary font-medium truncate max-w-[80px] min-[420px]:max-w-[110px] sm:max-w-none">→ ${escapeHtml(name)}</span>
-            <button class="icon-btn text-text/40 hover:text-red-400 cancel-send-btn" title="Cancel Transfer">
-              <i class="bi bi-x text-sm"></i>
-            </button>
-          </div>
+          <button type="button" class="icon-btn-sm text-text/45 hover:text-red-400 cancel-send-btn flex-shrink-0" title="Cancel Transfer">
+            <i class="bi bi-x-lg text-[10px]"></i>
+          </button>
         </div>
 
         <div class="progress-track">
           <div id="${domId}-bar" class="progress-fill ${initialTransport === "lan-direct" || initialTransport === "lan-tcp" ? "bg-accent" : ""}" style="width: 0%"></div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
+        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/55 tabular-nums">
           <span id="${domId}-meta">Starting direct stream...</span>
           <div class="flex items-center gap-2 font-mono">
             <span id="${domId}-speed" class="text-accent font-semibold"></span>
-            <span id="${domId}-eta" class="text-text/40"></span>
+            <span id="${domId}-eta" class="text-text/45"></span>
           </div>
         </div>
       `;
@@ -3690,29 +3862,33 @@ document.addEventListener("DOMContentLoaded", () => {
     li.className = "transfer-card";
 
     li.innerHTML = `
-      <div class="flex items-center justify-between gap-2 mb-2">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <i class="bi ${getFileIcon(fileName)} text-accent text-base flex-shrink-0"></i>
-          <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[150px] sm:max-w-[200px]">${escapeHtml(fileName)}</span>
-          <span>${getTransferBadgeHtml(transport, lanes)}</span>
+      <div class="flex items-start justify-between gap-2.5 mb-2.5">
+        <div class="flex items-start gap-2.5 min-w-0 flex-1">
+          <div class="w-8 h-8 rounded-lg bg-accent/12 border border-accent/25 flex items-center justify-center flex-shrink-0 text-accent mt-0.5">
+            <i class="bi ${getFileIcon(fileName)} text-sm"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold text-white truncate">${escapeHtml(fileName)}</p>
+            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+              <span>${getTransferBadgeHtml(transport, lanes)}</span>
+              <span class="text-[10px] text-accent/90 font-medium truncate max-w-[140px]">← ${escapeHtml(peerName)}</span>
+            </div>
+          </div>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <span class="text-[10px] text-accent font-medium truncate max-w-[80px] min-[420px]:max-w-[110px] sm:max-w-none">← ${escapeHtml(peerName)}</span>
-          <button class="icon-btn text-text/40 hover:text-red-400 cancel-receive-btn" title="Cancel Receiving">
-            <i class="bi bi-x text-sm"></i>
-          </button>
-        </div>
+        <button type="button" class="icon-btn-sm text-text/45 hover:text-red-400 cancel-receive-btn flex-shrink-0" title="Cancel Receiving">
+          <i class="bi bi-x-lg text-[10px]"></i>
+        </button>
       </div>
 
       <div class="progress-track">
         <div id="${domId}-bar" class="progress-fill bg-accent" style="width: 0%"></div>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
+      <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/55 tabular-nums">
         <span id="${domId}-meta">Receiving file...</span>
         <div class="flex items-center gap-2 font-mono">
           <span id="${domId}-speed" class="text-accent font-semibold"></span>
-          <span id="${domId}-eta" class="text-text/40"></span>
+          <span id="${domId}-eta" class="text-text/45"></span>
         </div>
       </div>
     `;
@@ -3726,37 +3902,35 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderCompletedReceivedCard(element, { fileName, totalSize, peerName, verifiedChecksum, blob, url, transport, lanes, avgSpeedBps }) {
     if (!element) return;
     const safeName = escapeHtml(fileName);
-    const speedPart = avgSpeedBps > 0 ? `<span>•</span><span class="font-mono text-accent">${escapeHtml(formatSpeedWithMbps(avgSpeedBps))}</span>` : "";
+    const speedPart = avgSpeedBps > 0 ? `<span class="text-white/20">•</span><span class="font-mono tabular-nums text-accent">${escapeHtml(formatSpeedWithMbps(avgSpeedBps))}</span>` : "";
 
     element.innerHTML = `
-      <div class="flex items-center justify-between gap-3 py-1">
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-          <div class="w-10 h-10 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 text-accent">
+      <div class="flex items-start justify-between gap-3 py-0.5">
+        <div class="flex items-start gap-3 min-w-0 flex-1">
+          <div class="w-10 h-10 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 text-accent mt-0.5">
             <i class="bi ${getFileIcon(fileName)} text-lg"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <p class="text-xs font-bold text-white truncate">${safeName}</p>
+            <p class="text-xs font-bold text-white truncate">${safeName}</p>
+            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-[10px] text-text/55">
               ${getTransferBadgeHtml(transport, lanes)}
-            </div>
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[10px] text-text/50">
-              <span class="font-mono">${formatBytes(totalSize)}</span>
-              <span>•</span>
-              <span>From ${escapeHtml(peerName)}</span>
+              <span class="font-mono tabular-nums text-text/70">${formatBytes(totalSize)}</span>
+              <span class="text-white/20">•</span>
+              <span class="truncate max-w-[120px]">From ${escapeHtml(peerName)}</span>
               ${speedPart}
-              <span>•</span>
-              <span class="text-accent flex items-center gap-0.5">
+              <span class="text-white/20">•</span>
+              <span class="text-accent inline-flex items-center gap-0.5 whitespace-nowrap">
                 <i class="bi bi-shield-check"></i> ${verifiedChecksum ? "Verified" : "Saved"}
               </span>
             </div>
           </div>
         </div>
 
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button class="icon-btn text-text/60 hover:text-primary preview-file-btn" title="Preview file">
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button type="button" class="icon-btn-sm text-text/65 hover:text-primary preview-file-btn" title="Preview file">
             <i class="bi bi-eye text-xs"></i>
           </button>
-          <a href="${url}" download="${safeName}" class="btn-primary-sm text-xs py-1.5 px-3 flex items-center gap-1.5" title="Download to device">
+          <a href="${url}" download="${safeName}" class="btn-primary-sm text-xs py-1.5 px-3 inline-flex items-center gap-1.5" title="Download to device">
             <i class="bi bi-download"></i><span class="hidden sm:inline">Save</span>
           </a>
         </div>
