@@ -186,6 +186,12 @@
                         <i class="bi bi-share text-[11px] text-primary ml-1 flex-shrink-0"></i>
                     </button>
 
+                    <!-- Direct LAN Turbo Pill -->
+                    <button id="lan-turbo-btn" class="js-lan-turbo-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-accent/10 border-accent/25 text-accent hover:bg-accent/20" title="Direct LAN Turbo settings, route inspector & Wi-Fi speed test">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                        <span class="js-lan-turbo-label text-[11px] font-semibold">LAN Turbo</span>
+                    </button>
+
                     <!-- Auto-Accept Files Toggle -->
                     <button id="auto-accept-toggle" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white" title="Auto-accept file transfers from trusted peers">
                         <i class="bi bi-shield-lock" id="auto-accept-icon"></i>
@@ -236,6 +242,12 @@
 
         <!-- Mobile dropdown menu -->
         <div id="mobile-menu" class="hidden md:hidden absolute left-3 right-3 top-full z-50 rounded-2xl border border-white/10 bg-[#0b0b0e]/95 backdrop-blur-xl shadow-2xl p-2">
+            <button id="lan-turbo-menu-btn" class="js-lan-turbo-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
+                <span class="flex items-center gap-2.5 text-sm text-text/80">
+                    <i class="bi bi-lightning-charge-fill text-accent"></i> Direct LAN Turbo
+                </span>
+                <span id="lan-turbo-menu-state" class="js-lan-turbo-label text-[11px] font-semibold text-accent">Ready</span>
+            </button>
             <button id="sound-menu-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors">
                 <span class="flex items-center gap-2.5 text-sm text-text/80">
                     <i id="sound-menu-icon" class="bi bi-volume-up text-primary"></i> Sound Chimes
@@ -401,7 +413,7 @@
                 <section class="panel">
                     <div class="flex items-center justify-between mb-3.5">
                         <h2 class="panel-heading"><i class="bi bi-cloud-arrow-up mr-2"></i>Send Files</h2>
-                        <span class="hidden min-[420px]:block text-[10px] text-text/50 font-medium whitespace-nowrap">Encrypted Direct P2P • No Limits</span>
+                        <span id="send-transport-hint" class="hidden min-[420px]:block text-[10px] text-text/50 font-medium whitespace-nowrap">Encrypted Direct P2P • No Limits</span>
                     </div>
 
                     <!-- Drop Zone -->
@@ -562,12 +574,12 @@
     <footer class="mt-auto border-t border-white/5 bg-background/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span class="text-xs text-text/40 flex items-center gap-1.5">
-                LocalShare • Direct P2P File Sharing & Messaging
+                LocalShare • Direct LAN &amp; P2P File Sharing
             </span>
             <div class="flex items-center gap-4 text-xs text-text/40">
-                <span class="font-mono text-[11px] text-text/30">v2.1.0</span>
+                <span class="font-mono text-[11px] text-text/30">v2.2.0</span>
                 <span>•</span>
-                <span class="text-accent flex items-center gap-1"><i class="bi bi-lock-fill"></i> DTLS WebRTC</span>
+                <span class="text-accent flex items-center gap-1"><i class="bi bi-lightning-charge-fill"></i> LAN Direct Turbo • DTLS WebRTC</span>
             </div>
         </div>
     </footer>
@@ -711,12 +723,128 @@
         </div>
     </div>
 
+    <!-- 5. Direct LAN Turbo Settings & Link Inspector Modal -->
+    <div id="lan-turbo-modal" class="fixed inset-0 z-[9998] hidden items-center justify-center bg-black/80 backdrop-blur-md px-4">
+        <div class="modal-card w-full max-w-lg max-h-[88vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center text-accent">
+                        <i class="bi bi-lightning-charge-fill text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white leading-tight">Direct LAN Turbo Engine</h3>
+                        <p class="text-[11px] text-text/50">Local Wi-Fi / Ethernet router speed • Bypasses PeerServer</p>
+                    </div>
+                </div>
+                <button id="lan-turbo-modal-close" class="icon-btn text-text/50 hover:text-white">
+                    <i class="bi bi-x-lg text-xs"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto scrollbar-thin space-y-4 pr-1">
+                <!-- Engine Summary -->
+                <div id="lan-engine-summary" class="p-3 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold text-white flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+                            Direct Host-Only WebRTC Multi-Lane
+                        </span>
+                        <span id="lan-engine-mode-pill" class="lan-badge-direct">LAN Ready</span>
+                    </div>
+                    <p id="lan-engine-desc" class="text-[11px] text-text/55 leading-relaxed">
+                        Peers on the same Wi-Fi/LAN automatically upgrade to parallel raw UDP/SCTP host-to-host channels directly across your local router — zero PeerServer data relay and zero BinaryPack overhead.
+                    </p>
+                </div>
+
+                <!-- Live Peer Route Diagnostics -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] uppercase font-bold tracking-wider text-text/45">Active Peer Link Routes</span>
+                        <span id="lan-routes-count" class="text-[10px] font-mono text-text/40">0 peers</span>
+                    </div>
+                    <ul id="lan-peer-routes-list" class="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
+                        <li class="p-3 rounded-xl bg-white/3 border border-white/6 text-xs text-text/45 text-center italic">
+                            Connect to a nearby device to inspect its live LAN/WAN path and parallel lanes.
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Parallel LAN Lanes Selector -->
+                <div class="p-3 rounded-xl bg-white/4 border border-white/8 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-white">Parallel LAN Transfer Lanes</span>
+                        <span id="lan-lanes-hint" class="text-[10px] font-mono text-primary">Auto (4× desktop / 2× mobile)</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button type="button" class="lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all" data-lanes="auto">Auto</button>
+                        <button type="button" class="lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all" data-lanes="2">2× Lanes</button>
+                        <button type="button" class="lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all" data-lanes="4">4× Lanes</button>
+                        <button type="button" class="lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all" data-lanes="6">6× Max</button>
+                    </div>
+                    <p class="text-[10px] text-text/45">
+                        Multiple parallel raw sockets saturate Wi-Fi 5/6/6E &amp; Gigabit Ethernet link speeds without SCTP single-stream bottlenecks.
+                    </p>
+                </div>
+
+                <!-- Toggles -->
+                <div class="space-y-2.5">
+                    <label id="lan-http-pipe-row" class="hidden flex items-start gap-2.5 p-3 rounded-xl bg-accent/8 border border-accent/25 cursor-pointer select-none">
+                        <input type="checkbox" id="lan-http-pipe-checkbox" class="mt-0.5 rounded accent-accent cursor-pointer" checked>
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-xs font-semibold text-white">Direct LAN Raw TCP/HTTP Pipe</span>
+                            <span class="block text-[10px] text-text/60 mt-0.5">Local LAN server detected — streams files over zero-buffer kernel TCP sockets for maximum router link speed.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-white/4 border border-white/8 cursor-pointer select-none">
+                        <input type="checkbox" id="strict-lan-checkbox" class="mt-0.5 rounded accent-primary cursor-pointer">
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-xs font-semibold text-white">Strict LAN-Only Mode</span>
+                            <span class="block text-[10px] text-text/50 mt-0.5">Never fall back to internet/STUN/WAN routes. Only allow direct local router host-to-host connections.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Live LAN Speed Test Result Card -->
+                <div id="lan-bench-result-card" class="hidden p-3.5 rounded-xl bg-gradient-to-br from-accent/10 to-primary/10 border border-accent/30 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                            <i class="bi bi-speedometer2"></i> LAN Link Benchmark
+                        </span>
+                        <span id="lan-bench-status" class="text-[10px] font-mono text-text/60">Testing...</span>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3">
+                        <div>
+                            <span id="lan-bench-mbs" class="text-2xl font-extrabold font-mono text-white">-- MB/s</span>
+                            <span id="lan-bench-mbps" class="ml-2 text-xs font-mono font-semibold text-accent">-- Mbps</span>
+                        </div>
+                        <span id="lan-bench-meta" class="text-[10px] font-mono text-text/60"></span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="lan-bench-bar" class="progress-fill bg-accent" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="flex flex-wrap gap-2.5 mt-4 pt-3 border-t border-white/10">
+                <button id="lan-reprobe-btn" class="btn-ghost flex-1 text-xs py-2">
+                    <i class="bi bi-arrow-repeat"></i> Re-probe LAN
+                </button>
+                <button id="lan-speedtest-btn" class="btn-primary flex-1 text-xs py-2">
+                    <i class="bi bi-speedometer2"></i> Run LAN Speed Test
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- PeerJS Config Override -->
     <script>
         window.LOCALSHARE_CONFIG = {
             // Optional custom STUN/TURN or peer server
         };
     </script>
+    <script src="lan-turbo.js"></script>
     <script src="index.js"></script>
 </body>
 </html>

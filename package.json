@@ -1,11 +1,12 @@
 {
   "name": "localshare",
-  "version": "2.1.0",
-  "description": "Zero-config peer-to-peer file sharing & messaging — no servers, no limits.",
+  "version": "2.2.0",
+  "description": "Zero-config peer-to-peer & direct LAN turbo file sharing & messaging — no servers, no limits.",
   "scripts": {
+    "start": "node server.cjs",
     "build:css": "tailwindcss -i input.css -o index.css --minify",
     "watch:css": "tailwindcss -i input.css -o index.css --watch",
-    "test": "node tests/smoke.cjs"
+    "test": "node tests/smoke.cjs && node tests/lan-turbo.cjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.0.0",

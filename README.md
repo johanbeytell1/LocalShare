@@ -23,17 +23,32 @@ LocalShare is a fully client-side, peer-to-peer file-sharing and messaging web a
 
 | Feature | Description |
 |---------|-------------|
-| **Direct P2P Transfers** | Files stream device-to-device over encrypted WebRTC data channels |
-| **Zero-Config Discovery** | Devices sharing a public IP auto-discover each other via room registry |
-| **Corruption-Free Transfers** | FNV-1a checksum verification + ordered chunk assembly guarantees file integrity |
-| **High-Speed Chunking** | 256KB chunks with WebRTC backpressure control for maximum throughput |
+| **Direct LAN Turbo Engine** | Auto-detects same-LAN peers and upgrades to 4× parallel host-only raw WebRTC channels straight across your Wi-Fi router |
+| **Zero-Config Discovery** | Devices sharing a public IP (or local LAN server) auto-discover each other instantly |
+| **Corruption-Free Transfers** | Inline single-pass FNV-1a checksum verification + zero-copy chunk assembly guarantees integrity |
+| **Optional Offline LAN Server** | Run `npm start` for zero-internet LAN discovery + raw kernel TCP/HTTP streaming at full router link speed |
+| **1-Click LAN Speed Test** | Built-in multi-lane link benchmark showing live MB/s, Mbps, active route & RTT |
 | **Failover Room Host** | Automatic host election with seamless failover if the host disconnects |
-| **Secure Handshakes** | Explicit Accept/Reject confirmation before any connection is established |
-| **Real-Time Transfer Metrics** | Live speed, percentage, and byte-count tracking with progress bars |
+| **Secure Handshakes** | Explicit Accept/Reject confirmation with SAS codes before any connection is established |
+| **Real-Time Transfer Metrics** | Live MB/s + Mbps speed, peak throughput, transport badge, ETA, and progress bars |
 | **Room Chat** | Encrypted in-room messaging between all connected peers |
 | **Manual Peer Connect** | Bridge any network via direct Peer ID or QR code scanning |
-| **Drag & Drop** | Native drag-and-drop file selection with multi-file support |
+| **Drag & Drop** | Native drag-and-drop file & folder selection with multi-file support |
 | **Smart File Icons** | Automatic icon detection for 30+ file types (media, code, archives, apps) |
+
+## ⚡ v2.2 — Direct LAN Turbo Engine (Router Link Speed)
+
+### Pure-Browser Direct LAN Multi-Lane Engine (Works Everywhere — Zero Installs)
+- **Strict Host-Only LAN Upgrade (`iceServers: []`)**: Immediately after connecting, LocalShare probes a dedicated host-only direct LAN WebRTC path (`host ↔ host`) signaled over your local P2P link — **zero PeerServer relay, zero STUN hairpinning, 100% local Wi-Fi/Ethernet router traffic**.
+- **Parallel Multi-Lane Raw Sockets**: Bypasses PeerJS's BinaryPack serializer and 16KB JS re-chunker completely, striping files across **2–6 parallel raw `RTCDataChannel`s** (`ordered: false` reliable SCTP, independent congestion controllers) with work-stealing load balancing and automatic mid-transfer lane failover.
+- **Event-Driven Backpressure & Zero Timer Clamps**: Uses native `bufferedamountlow` events (4 MB high-water / 1 MB low-water per lane) and `MessageChannel` micro-yields instead of `setTimeout(0)`'s 4 ms clamp, eliminating pipe starvation.
+- **4 MB Disk Read-Ahead Slabbing + Single-Pass Inline Checksum**: Starts streaming in milliseconds with zero pre-transfer checksum delay, zero-copy `Uint8Array` views on receive, and throttled UI updates for silky 60fps progress at 100+ MB/s.
+- **Live Route Badges, Mbps Readouts & 1-Click Speed Test**: Every connection displays its live verified path (`⚡ LAN Direct • 4×`, `🚀 LAN TCP Pipe`, `🌐 Direct P2P`, or `☁️ Relayed`), real-time `MB/s (Mbps)` throughput, a **Strict LAN-Only Mode** toggle, and an integrated multi-lane **LAN Speed Test**.
+
+### Optional Zero-Dependency Local LAN Server (`npm start`)
+- Run `npm start` (`node server.cjs`) on any machine on your Wi-Fi/LAN and open the printed `http://<LAN-IP>:3000` URL on your other devices:
+  - **100% Offline LAN Mode**: Local SSE discovery & WebRTC signaling work even with zero internet connection.
+  - **Direct LAN Raw TCP/HTTP Pipe**: Streams files directly from sender to receiver via backpressured kernel TCP streams (`PUT` → `pipe()` → `GET`) with per-transfer cryptographic tokens, zero temp files, and zero DTLS CPU overhead — saturating Wi-Fi 6 / Gigabit Ethernet link speeds.
 
 ## 🆕 v2.1 — Reliability & Security Overhaul
 
@@ -105,42 +120,43 @@ git clone https://github.com/Infinitode/LocalShare.git
 # Navigate into the project
 cd LocalShare
 
-# Compile Tailwind CSS v4 (requires Node.js)
-npx @tailwindcss/cli -i input.css -o output.css --watch
+# Option 1 (Fastest on LAN — offline-capable + Raw TCP/HTTP Pipe + 4× WebRTC Turbo):
+npm start
+# Open the printed http://<YOUR-LAN-IP>:3000 URL on your Wi-Fi/LAN devices!
 
-# Open index.html in your browser or use a local server
+# Option 2 (Pure static web app — 4× Direct LAN WebRTC Turbo, zero server):
 npx serve .
+
+# Rebuild Tailwind CSS v4 after styling edits:
+npm install && npm run build:css
+
+# Run automated test suite:
+npm test
 ```
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Room Discovery                        │
-│                                                         │
-│  Device A ──┐                                          │
-│  Device B ──┼──► Room Host (ls-roomhost-{room-id})    │
-│  Device C ──┘       │                                   │
-│                     ▼                                   │
-│              Registry Roster Broadcast                   │
-│              (peer list sync to all clients)             │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│                   File Transfer                          │
-│                                                         │
-│  Sender                      Receiver                   │
-│  ──────                      ────────                   │
-│  1. Read file as ArrayBuffer                            │
-│  2. Compute FNV-1a checksum                             │
-│  3. Send metadata (name, size,                          │
-│     chunks, mime, checksum)                             │
-│  4. Stream 256KB chunks ──────► Collect by index        │
-│     (with backpressure)         5. Verify chunk count   │
-│                                 6. Verify checksum      │
-│                                 7. Assemble Blob        │
-│                                 8. Offer download       │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                Direct LAN Turbo Transfer                     │
+│                                                             │
+│  Tier 0 (Optional `npm start` LAN Server):                  │
+│    Sender ── PUT /api/lan/stream/:id ──► Kernel TCP Pipe    │
+│                                              │              │
+│    Receiver ◄── GET /api/lan/stream/:id ─────┘              │
+│                                                             │
+│  Tier 1 (Pure-Browser Direct LAN — Zero Installs):          │
+│    Host-Only RTCPeerConnection Pool (`iceServers: []`)      │
+│    Sender (4MB Read-Ahead Slabs + Inline FNV-1a)            │
+│      ├── Raw Lane 0 (ordered:false, bufferedamountlow) ──►  │
+│      ├── Raw Lane 1 (independent SCTP/DTLS)            ──►  │
+│      ├── Raw Lane 2 (work-stealing failover)           ──►  │
+│      └── Raw Lane 3 (zero-copy 12B LST2 frames)        ──►  │
+│    Receiver (Zero-Copy Uint8Array Views + Blob Assembly)    │
+│                                                             │
+│  Tier 2 (Cross-Network / Legacy Fallback):                  │
+│    STUN Direct Raw P2P Turbo  ──► PeerJS Compatibility      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Room Assignment
