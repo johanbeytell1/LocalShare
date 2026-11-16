@@ -125,6 +125,38 @@ document.addEventListener("DOMContentLoaded", () => {
   const previewModalDownload = $("preview-modal-download");
   const previewModalClose = $("preview-modal-close");
 
+  // Direct LAN Turbo Modal & Indicators
+  const sendTransportHint = $("send-transport-hint");
+  const lanLiveBanner = $("lan-live-banner");
+  const lanLiveDot = $("lan-live-dot");
+  const lanLiveTitle = $("lan-live-title");
+  const lanLiveBadge = $("lan-live-badge");
+  const lanLiveSub = $("lan-live-sub");
+  const lanTurboModal = $("lan-turbo-modal");
+  const lanTurboModalClose = $("lan-turbo-modal-close");
+  const lanEngineModePill = $("lan-engine-mode-pill");
+  const lanEngineDesc = $("lan-engine-desc");
+  const lanRoutesCount = $("lan-routes-count");
+  const lanPeerRoutesList = $("lan-peer-routes-list");
+  const lanLanesHint = $("lan-lanes-hint");
+  const lanHttpPipeRow = $("lan-http-pipe-row");
+  const lanHttpPipeCheckbox = $("lan-http-pipe-checkbox");
+  const strictLanCheckbox = $("strict-lan-checkbox");
+  const lanBenchResultCard = $("lan-bench-result-card");
+  const lanBenchStatus = $("lan-bench-status");
+  const lanBenchMbs = $("lan-bench-mbs");
+  const lanBenchMbps = $("lan-bench-mbps");
+  const lanBenchMeta = $("lan-bench-meta");
+  const lanBenchBar = $("lan-bench-bar");
+  const lanReprobeBtn = $("lan-reprobe-btn");
+  const lanSpeedtestBtn = $("lan-speedtest-btn");
+
+  const LanTurbo = window.LocalShareLanTurbo || null;
+  const lanServerConfig =
+    window.LOCALSHARE_LAN_SERVER && window.LOCALSHARE_LAN_SERVER.enabled
+      ? window.LOCALSHARE_LAN_SERVER
+      : null;
+
   // ═══════════════════════════════════════════
   // Preferences & Persistent State
   // ═══════════════════════════════════════════
@@ -150,6 +182,9 @@ document.addEventListener("DOMContentLoaded", () => {
     nickname: getStored("nickname", ""),
     autoAccept: getStored("auto_accept", "false") === "true",
     sound: getStored("sound", "true") !== "false",
+    turboLanes: getStored("turbo_lanes", "auto"),
+    strictLanOnly: getStored("strict_lan_only", "false") === "true",
+    useLanHttpPipe: getStored("use_lan_http_pipe", "true") !== "false",
     trustedPeers: (() => {
       try {
         return JSON.parse(getStored("trusted_peers", "[]"));
@@ -205,6 +240,15 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "Escape") {
         themeDropdown.classList.add("hidden");
         closeMobileMenu();
+        closeLanTurboModal();
+        if (roomModal && !roomModal.classList.contains("hidden")) {
+          roomModal.classList.add("hidden");
+          roomModal.classList.remove("flex");
+        }
+        if (filePreviewModal && !filePreviewModal.classList.contains("hidden")) {
+          filePreviewModal.classList.add("hidden");
+          filePreviewModal.classList.remove("flex");
+        }
       }
     });
 
@@ -328,9 +372,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const on = PREFS.autoAccept;
     if (autoAcceptToggle && autoAcceptIcon && autoAcceptLabel) {
       autoAcceptToggle.className = on
-        ? "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-accent/15 border-accent/30 text-accent"
-        : "hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all bg-white/5 border-white/10 text-text/60 hover:text-white";
-      autoAcceptIcon.className = on ? "bi bi-shield-check" : "bi bi-shield-lock";
+        ? "nav-pill bg-accent/15 border-accent/35 text-accent hover:bg-accent/20"
+        : "nav-pill text-text/65 hover:text-white";
+      autoAcceptIcon.className = on ? "bi bi-shield-check flex-shrink-0" : "bi bi-shield-lock flex-shrink-0";
       autoAcceptLabel.textContent = on ? "Auto-Accept: ON" : "Auto-Accept: OFF";
       autoAcceptToggle.title = on
         ? "Auto-accepting file transfers from linked devices"
@@ -469,10 +513,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Application State
   // ═══════════════════════════════════════════
   let peer = null;
-  const connections = {}; // pid -> { conn, name, platform, security, rtt, status, pingTimer }
+  let localPeerIdOverride = null; // used in offline LAN server mode when PeerJS cloud is unavailable
+  const connections = {}; // pid -> { conn, name, platform, security, rtt, status, pingTimer, turbo, turboStatus, lanNotified }
   let selectedFiles = [];
   const incomingTransfers = {}; // transferId -> transfer
   const outgoingTransfers = {}; // transferId -> transfer
+  const earlyChunkBuffers = new Map(); // transferId -> { chunks: [], timer }
   const pendingFileOffers = {}; // offerId -> offerData
   const pendingHandshakes = []; // queue of incoming connection requests
   let isHandshakeModalActive = false;
@@ -482,14 +528,42 @@ document.addEventListener("DOMContentLoaded", () => {
   let roomHostPeer = null;
   let isRoomHost = false;
   let registryConn = null;
-  const roomPeers = {}; // pid -> { peerId, name, platform, ts }
+  const roomPeers = {}; // pid -> { peerId, name, platform, ts, lanServer? }
   const roomPeerConns = {}; // pid -> conn to client
   let isTransitioningDiscovery = false;
 
+  // Optional Local LAN Server Bridge (only active when served via `npm start`)
+  let lanServerClient = null;
+  const lanDirectControlConns = new Map(); // pid -> LanControlConn (offline LAN WebRTC control channel)
+
   const appConfig = window.LOCALSHARE_CONFIG || {};
   const REGISTRY_HEARTBEAT_MS = 3500;
-  const FILE_CHUNK_SIZE = 256 * 1024; // 256KB chunks
-  const MAX_BUFFERED_AMOUNT = 512 * 1024; // 512KB backpressure threshold
+  const FILE_CHUNK_SIZE = 256 * 1024; // 256KB legacy PeerJS fallback chunks
+  const MAX_BUFFERED_AMOUNT = 2 * 1024 * 1024; // 2MB fallback backpressure threshold
+
+  function getActiveLocalPeerId() {
+    return (peer && peer.id) || localPeerIdOverride || currentPeerId || null;
+  }
+
+  function getEffectiveDesiredLanes() {
+    const isMobile = localPlatform !== "laptop";
+    if (PREFS.turboLanes === "auto") {
+      return isMobile ? (LanTurbo ? LanTurbo.DEFAULT_MOBILE_LANES : 2) : (LanTurbo ? LanTurbo.DEFAULT_DESKTOP_LANES : 4);
+    }
+    const parsed = Number(PREFS.turboLanes);
+    if (!Number.isFinite(parsed) || parsed < 1) return isMobile ? 2 : 4;
+    return Math.max(1, Math.min(6, Math.round(parsed)));
+  }
+
+  function isLanHttpPipeAvailableForPeer(pid) {
+    if (!lanServerConfig || !lanServerConfig.httpPipeEnabled || !PREFS.useLanHttpPipe || !lanServerClient) {
+      return false;
+    }
+    const entry = connections[pid];
+    if (!entry) return false;
+    const remoteOrigin = entry.turboStatus?.remoteCaps?.lanServerOrigin || entry.turbo?.remoteCaps?.lanServerOrigin;
+    return Boolean(remoteOrigin && remoteOrigin === window.location.origin);
+  }
 
   // ═══════════════════════════════════════════
   // Utilities
@@ -559,7 +633,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "";
     if (bytesPerSec < 1024) return `${Math.round(bytesPerSec)} B/s`;
     if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
-    return `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`;
+    return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
+  }
+
+  function formatSpeedWithMbps(bytesPerSec) {
+    if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "";
+    if (LanTurbo && typeof LanTurbo.formatThroughput === "function") {
+      return LanTurbo.formatThroughput(bytesPerSec).combined;
+    }
+    const mbs = formatSpeed(bytesPerSec);
+    const mbps = (bytesPerSec * 8) / 1_000_000;
+    const mbpsLabel = mbps >= 100 ? `${Math.round(mbps)} Mbps` : `${mbps.toFixed(1)} Mbps`;
+    return `${mbs} (${mbpsLabel})`;
   }
 
   function formatEta(seconds) {
@@ -898,17 +983,31 @@ document.addEventListener("DOMContentLoaded", () => {
       peer = null;
     }
 
+    // If running on our optional local LAN server (`npm start`), bring up offline-capable LAN discovery immediately!
+    if (lanServerConfig && LanTurbo) {
+      localPeerIdOverride = attemptId;
+      currentPeerId = attemptId;
+      startLanServerBridge(attemptId);
+      if (deviceStatusDot) deviceStatusDot.className = "status-dot online";
+      setNetworkDotClass("bg-accent animate-pulse");
+      renderMyDeviceCard(attemptId);
+      displayQrCode(attemptId);
+    }
+
     try {
       peer = new Peer(attemptId, getPeerOptions());
     } catch (err) {
       console.error("Failed to initialize PeerJS:", err);
-      showToast("PeerJS engine failed to initialize", "error");
+      if (!lanServerConfig) {
+        showToast("PeerJS engine failed to initialize", "error");
+      }
       return;
     }
 
     peer.on("open", (id) => {
       console.log("Local Peer Online:", id);
       currentPeerId = id;
+      localPeerIdOverride = id;
 
       if (deviceStatusDot) deviceStatusDot.className = "status-dot online";
       setNetworkDotClass("bg-accent animate-pulse");
@@ -917,6 +1016,9 @@ document.addEventListener("DOMContentLoaded", () => {
       displayQrCode(id);
       startNearbyScan();
       bootstrapRoomRegistry();
+      if (lanServerConfig && LanTurbo) {
+        startLanServerBridge(id);
+      }
       sounds.play("connect");
     });
 
@@ -934,10 +1036,21 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => initPeer(), 300 + Math.random() * 400);
         return;
       }
+      if (lanServerConfig && lanServerClient && lanServerClient.connected) {
+        // Running offline on local LAN server — PeerJS cloud isn't required!
+        if (deviceRoleBadge) {
+          deviceRoleBadge.textContent = "LAN Offline Mode";
+          deviceRoleBadge.className = "text-[10px] font-semibold bg-accent/15 text-accent border border-accent/25 px-2 py-0.5 rounded-full";
+        }
+        return;
+      }
       showToast(`Network notice: ${err && err.type ? err.type : err}`, "warning");
     });
 
     peer.on("disconnected", () => {
+      if (lanServerConfig && lanServerClient && lanServerClient.connected) {
+        return; // Stay online locally via LAN server
+      }
       if (deviceStatusDot) deviceStatusDot.className = "status-dot offline";
       setNetworkDotClass("bg-red-400");
       showToast("Signaling disconnected. Auto-reconnecting...", "warning");
@@ -951,26 +1064,225 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ═══════════════════════════════════════════
+  // Optional Local LAN Server Bridge (Offline Discovery + Local Signaling)
+  // Active ONLY when served via `npm start` (`server.cjs`)
+  // ═══════════════════════════════════════════
+  function createLanControlConn(remoteId, metadata = {}) {
+    const handlers = {};
+    const pc = new RTCPeerConnection({ iceServers: [], bundlePolicy: "max-bundle" });
+    const connObj = {
+      peer: remoteId,
+      metadata,
+      open: false,
+      destroyed: false,
+      isLanDirectControl: true,
+      peerConnection: pc,
+      dataChannel: null,
+      _pendingIce: [],
+      _remoteDescSet: false,
+      on(ev, cb) {
+        (handlers[ev] ||= []).push(cb);
+      },
+      _emit(ev, payload) {
+        (handlers[ev] || []).forEach((fn) => {
+          try { fn(payload); } catch (_e) {}
+        });
+      },
+      send(data) {
+        if (!connObj.dataChannel || connObj.dataChannel.readyState !== "open") return;
+        if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+          connObj.dataChannel.send(data);
+        } else {
+          connObj.dataChannel.send(JSON.stringify(data));
+        }
+      },
+      close() {
+        if (connObj.destroyed) return;
+        connObj.destroyed = true;
+        connObj.open = false;
+        lanDirectControlConns.delete(remoteId);
+        try { connObj.dataChannel?.close(); } catch (_e) {}
+        try { pc.close(); } catch (_e) {}
+        connObj._emit("close");
+      },
+    };
+
+    const bindDc = (dc) => {
+      connObj.dataChannel = dc;
+      try { dc.binaryType = "arraybuffer"; } catch (_e) {}
+      dc.onopen = () => {
+        connObj.open = true;
+        connObj._emit("open");
+      };
+      dc.onmessage = (ev) => {
+        if (typeof ev.data === "string") {
+          try {
+            connObj._emit("data", JSON.parse(ev.data));
+          } catch (_e) {}
+        } else {
+          connObj._emit("data", ev.data);
+        }
+      };
+      dc.onclose = () => connObj.close();
+      dc.onerror = (err) => connObj._emit("error", err);
+    };
+
+    connObj._bindDc = bindDc;
+
+    pc.onicecandidate = (ev) => {
+      if (!ev.candidate || !ev.candidate.candidate || !lanServerClient) return;
+      lanServerClient
+        .sendSignal(remoteId, {
+          type: "lan-ctrl-ice",
+          candidate: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate,
+        })
+        .catch(() => {});
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
+        connObj.close();
+      }
+    };
+
+    lanDirectControlConns.set(remoteId, connObj);
+    return connObj;
+  }
+
+  async function initiateLanServerControlConnection(remoteId) {
+    if (!lanServerClient || typeof RTCPeerConnection === "undefined") return null;
+    const metadata = { name: localPeerName, platform: localPlatform, type: "handshake" };
+    const conn = createLanControlConn(remoteId, metadata);
+    const dc = conn.peerConnection.createDataChannel("ls-ctrl", { ordered: true });
+    conn._bindDc(dc);
+
+    const offer = await conn.peerConnection.createOffer();
+    await conn.peerConnection.setLocalDescription(offer);
+    await lanServerClient.sendSignal(remoteId, {
+      type: "lan-ctrl-offer",
+      metadata,
+      sdp: conn.peerConnection.localDescription.toJSON(),
+    });
+    return conn;
+  }
+
+  async function handleLanServerSignal(fromPeerId, payload) {
+    if (!payload || !fromPeerId) return;
+
+    if (payload.type === "lan-ctrl-offer") {
+      if (typeof RTCPeerConnection === "undefined") return;
+      const conn = createLanControlConn(fromPeerId, payload.metadata || {});
+      conn.peerConnection.ondatachannel = (ev) => conn._bindDc(ev.channel);
+      await conn.peerConnection.setRemoteDescription(payload.sdp);
+      conn._remoteDescSet = true;
+      while (conn._pendingIce.length) {
+        try { await conn.peerConnection.addIceCandidate(conn._pendingIce.shift()); } catch (_e) {}
+      }
+      const answer = await conn.peerConnection.createAnswer();
+      await conn.peerConnection.setLocalDescription(answer);
+      await lanServerClient.sendSignal(fromPeerId, {
+        type: "lan-ctrl-answer",
+        sdp: conn.peerConnection.localDescription.toJSON(),
+      });
+      handleIncomingConnection(conn);
+      return;
+    }
+
+    const existing = lanDirectControlConns.get(fromPeerId);
+    if (!existing) return;
+
+    if (payload.type === "lan-ctrl-answer") {
+      await existing.peerConnection.setRemoteDescription(payload.sdp);
+      existing._remoteDescSet = true;
+      while (existing._pendingIce.length) {
+        try { await existing.peerConnection.addIceCandidate(existing._pendingIce.shift()); } catch (_e) {}
+      }
+    } else if (payload.type === "lan-ctrl-ice" && payload.candidate) {
+      if (!existing._remoteDescSet) {
+        existing._pendingIce.push(payload.candidate);
+      } else {
+        try { await existing.peerConnection.addIceCandidate(payload.candidate); } catch (_e) {}
+      }
+    }
+  }
+
+  function startLanServerBridge(myPeerId) {
+    if (!lanServerConfig || !LanTurbo || !myPeerId) return;
+    if (lanServerClient) {
+      lanServerClient.disconnect();
+      lanServerClient = null;
+    }
+
+    lanServerClient = new LanTurbo.LanServerTransport({
+      peerId: myPeerId,
+      room: nearbyRoomId,
+      name: localPeerName,
+      platform: localPlatform,
+      onStatus: (connected) => {
+        if (connected && deviceRoleBadge && (!peer || peer.disconnected)) {
+          deviceRoleBadge.textContent = "LAN Server";
+          deviceRoleBadge.className = "text-[10px] font-semibold bg-accent/15 text-accent border border-accent/25 px-2 py-0.5 rounded-full";
+        }
+        updateGlobalLanIndicators();
+      },
+      onRoster: (peers) => {
+        const myId = getActiveLocalPeerId();
+        const activeLanIds = new Set();
+        peers.forEach((p) => {
+          if (!p.peerId || p.peerId === myId) return;
+          activeLanIds.add(p.peerId);
+          roomPeers[p.peerId] = {
+            peerId: p.peerId,
+            name: p.name || "LAN Device",
+            platform: p.platform || "laptop",
+            ts: Date.now(),
+            lanServer: true,
+          };
+        });
+        // Prune departed LAN-only peers
+        Object.entries(roomPeers).forEach(([pid, entry]) => {
+          if (entry.lanServer && !activeLanIds.has(pid)) {
+            delete roomPeers[pid];
+          }
+        });
+        renderNearbyPeers(Object.values(roomPeers).filter((p) => p.peerId !== myId));
+      },
+      onSignal: ({ from, payload }) => {
+        handleLanServerSignal(from, payload).catch((err) => {
+          console.warn("LAN signal error:", err);
+        });
+      },
+    });
+    lanServerClient.connect();
+  }
+
+  // ═══════════════════════════════════════════
   // My Device UI & Renaming
   // ═══════════════════════════════════════════
   function renderMyDeviceCard(id) {
     if (!statusEl) return;
+    const laneCount = getEffectiveDesiredLanes();
+    const turboIcon = lanServerConfig ? "bi-hdd-network-fill" : "bi-lightning-charge-fill";
+    const turboBadgeCls = lanServerConfig ? "lan-badge-tcp" : "lan-badge-direct";
+    const turboSummary = lanServerConfig
+      ? `LAN Server • TCP Pipe + ${laneCount}× WebRTC`
+      : `LAN Turbo Ready • ${laneCount}× Channels`;
 
     statusEl.innerHTML = `
       <div class="space-y-3">
         <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0 text-primary shadow-sm">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/25 flex items-center justify-center flex-shrink-0 text-primary shadow-sm">
             <i class="bi ${getPlatformIcon(localPlatform)} text-xl"></i>
           </div>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <span id="device-name-display" class="text-sm font-bold text-white truncate">${escapeHtml(localPeerName)}</span>
-              <button id="edit-name-btn" class="text-text/40 hover:text-primary transition-colors text-xs" title="Rename this device">
+              <button id="edit-name-btn" class="text-text/40 hover:text-primary transition-colors text-xs flex-shrink-0" title="Rename this device">
                 <i class="bi bi-pencil-square"></i>
               </button>
             </div>
-            <p class="text-[11px] font-mono text-text/40 truncate select-all mt-0.5">${escapeHtml(id)}</p>
+            <p class="text-[11px] font-mono text-text/45 truncate select-all mt-0.5">${escapeHtml(id)}</p>
           </div>
 
           <button id="copy-id-btn" class="icon-btn flex-none text-text/60 hover:text-primary" title="Copy Peer ID">
@@ -985,12 +1297,28 @@ document.addEventListener("DOMContentLoaded", () => {
           <button id="cancel-name-btn" class="btn-ghost text-xs py-1 px-2">Cancel</button>
         </div>
 
-        <div id="discovery-status" class="text-xs text-text/50 flex items-center gap-2 pt-1 border-t border-white/5">
-          <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-          <span>Room: <strong class="text-text/80 font-mono">#${escapeHtml(nearbyRoomId)}</strong> • Auto-discovering devices</span>
+        <div id="discovery-status" class="text-xs text-text/55 space-y-2 pt-2 border-t border-white/[0.06]">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse flex-shrink-0"></span>
+              <span class="truncate">Room <strong class="text-text/85 font-mono">#${escapeHtml(nearbyRoomId)}</strong></span>
+            </div>
+            <span class="text-[10px] text-text/40 whitespace-nowrap">Auto-discovering</span>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <button type="button" id="device-turbo-chip" class="${turboBadgeCls} cursor-pointer hover:brightness-110 transition-all" title="Click to configure Direct LAN Turbo">
+              <i class="bi ${turboIcon}"></i>
+              <span>${escapeHtml(turboSummary)}</span>
+            </button>
+          </div>
         </div>
       </div>
     `;
+
+    const deviceTurboChip = $("device-turbo-chip");
+    if (deviceTurboChip) {
+      deviceTurboChip.addEventListener("click", openLanTurboModal);
+    }
 
     // Copy ID button
     const copyIdBtn = $("copy-id-btn");
@@ -1047,18 +1375,22 @@ document.addEventListener("DOMContentLoaded", () => {
           });
 
           // Update registry
-          if (isRoomHost) {
-            upsertRoomPeer(peer.id, localPeerName, localPlatform);
+          const activeId = getActiveLocalPeerId();
+          if (isRoomHost && activeId) {
+            upsertRoomPeer(activeId, localPeerName, localPlatform);
             publishRoster();
-          } else if (registryConn && registryConn.open) {
+          } else if (registryConn && registryConn.open && activeId) {
             try {
               registryConn.send({
                 type: "registry-register",
-                peerId: peer.id,
+                peerId: activeId,
                 name: localPeerName,
                 platform: localPlatform,
               });
             } catch (_e) {}
+          }
+          if (lanServerClient && activeId) {
+            startLanServerBridge(activeId);
           }
         } else {
           editForm.classList.add("hidden");
@@ -1182,6 +1514,11 @@ document.addEventListener("DOMContentLoaded", () => {
       registryConn = null;
     }
 
+    if (lanServerClient) {
+      lanServerClient.disconnect();
+      lanServerClient = null;
+    }
+
     nearbyRoomId = clean;
     try {
       window.history.replaceState(null, "", `#room=${nearbyRoomId}`);
@@ -1296,7 +1633,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const { code, emojis } = computeSecurityVerification(peer.id, remoteId);
+    const { code, emojis } = computeSecurityVerification(getActiveLocalPeerId() || "", remoteId);
 
     if (handshakeMessage) {
       handshakeMessage.innerHTML = `
@@ -1364,20 +1701,332 @@ document.addEventListener("DOMContentLoaded", () => {
       conn.on("open", respond);
     }
 
-    setupConnection(conn, remoteName, remotePlatform);
+    setupConnection(conn, remoteName, remotePlatform, true);
     showToast(`Connected to ${remoteName}`, "success");
     sounds.play("connect");
   }
 
-  function setupConnection(conn, name, platform = "laptop") {
+  // ═══════════════════════════════════════════
+  // Direct LAN Turbo Session Attachment & Route Badges
+  // ═══════════════════════════════════════════
+  function renderRouteBadgeInner(info) {
+    const iconHtml = info.icon ? `<i class="bi ${info.icon}"></i>` : "";
+    return `${iconHtml}<span>${escapeHtml(info.text)}</span>`;
+  }
+
+  function getPeerRouteBadgeInfo(pid) {
+    const entry = connections[pid];
+    if (!entry) {
+      return { cls: "lan-badge-probing", icon: "bi-circle", text: "Idle", title: "Disconnected" };
+    }
+    if (isLanHttpPipeAvailableForPeer(pid)) {
+      return {
+        cls: "lan-badge-tcp",
+        icon: "bi-hdd-network-fill",
+        text: "LAN TCP Pipe",
+        title: "Both devices on local LAN server — raw kernel TCP pipe at full Wi-Fi/Ethernet router link speed",
+      };
+    }
+
+    const st = entry.turboStatus;
+    if (!st || st.state === "idle") {
+      return { cls: "lan-badge-probing", icon: "bi-broadcast", text: "P2P Link", title: "Standard WebRTC DataChannel" };
+    }
+    if (st.state === "probing-lan") {
+      return {
+        cls: "lan-badge-probing",
+        icon: "bi-radar",
+        text: "Probing LAN…",
+        title: "Testing direct host-to-host local router path (iceServers: [])",
+      };
+    }
+    if (st.state === "probing-wan") {
+      return {
+        cls: "lan-badge-probing",
+        icon: "bi-arrow-repeat",
+        text: "Turbo P2P…",
+        title: "Negotiating parallel raw direct WebRTC lanes",
+      };
+    }
+    if (st.state === "lan-direct" || st.isLanDirect) {
+      const lanes = st.activeLanes || 0;
+      const laneSuffix = lanes > 0 ? ` · ${lanes}×` : "";
+      const routeDetail = st.routeInfo?.detail || "Direct local router UDP/SCTP";
+      return {
+        cls: "lan-badge-direct",
+        icon: "bi-lightning-charge-fill",
+        text: `LAN Direct${laneSuffix}`,
+        title: `${routeDetail} (${lanes} parallel raw lanes, bypasses PeerServer)`,
+      };
+    }
+    if (st.state === "wan-p2p") {
+      const lanes = st.activeLanes || 0;
+      return {
+        cls: "lan-badge-wan",
+        icon: "bi-globe2",
+        text: lanes > 0 ? `Direct P2P · ${lanes}×` : "Direct P2P",
+        title: `${st.routeInfo?.detail || "Direct WAN WebRTC"} (${lanes} raw turbo lanes)`,
+      };
+    }
+    if (st.state === "relayed") {
+      return {
+        cls: "lan-badge-relay",
+        icon: "bi-cloud-fill",
+        text: "Relayed",
+        title: "TURN relay path (not on same LAN)",
+      };
+    }
+    if (st.state === "lan-strict-blocked") {
+      return {
+        cls: "lan-badge-relay",
+        icon: "bi-shield-exclamation",
+        text: "LAN Blocked",
+        title: "Strict LAN-Only Mode enabled and no direct LAN route was found",
+      };
+    }
+    return {
+      cls: "lan-badge-probing",
+      icon: "bi-plug-fill",
+      text: "PeerJS",
+      title: "Standard PeerJS compatibility channel",
+    };
+  }
+
+  function updateGlobalLanIndicators() {
+    const entries = Object.entries(connections);
+    let lanDirectCount = 0;
+    let lanTcpCount = 0;
+    let wanTurboCount = 0;
+    let probingCount = 0;
+    let maxLanes = 0;
+    let bestRtt = null;
+
+    entries.forEach(([pid, entry]) => {
+      const rtt = entry.turboStatus?.routeInfo?.rttMs ?? entry.rtt;
+      if (typeof rtt === "number" && rtt >= 0) {
+        bestRtt = bestRtt === null ? rtt : Math.min(bestRtt, rtt);
+      }
+
+      if (isLanHttpPipeAvailableForPeer(pid)) {
+        lanTcpCount += 1;
+        lanDirectCount += 1;
+      } else if (entry.turboStatus && entry.turboStatus.isLanDirect) {
+        lanDirectCount += 1;
+        maxLanes = Math.max(maxLanes, entry.turboStatus.activeLanes || 0);
+      } else if (entry.turboStatus && entry.turboStatus.state === "wan-p2p") {
+        wanTurboCount += 1;
+        maxLanes = Math.max(maxLanes, entry.turboStatus.activeLanes || 0);
+      } else if (
+        entry.turboStatus &&
+        (entry.turboStatus.state === "probing-lan" || entry.turboStatus.state === "probing-wan")
+      ) {
+        probingCount += 1;
+      }
+    });
+
+    const isLanHot = lanTcpCount > 0 || lanDirectCount > 0;
+    const activeLanes = maxLanes || getEffectiveDesiredLanes();
+
+    const labelText =
+      lanTcpCount > 0
+        ? "LAN TCP"
+        : lanDirectCount > 0
+          ? `LAN Direct ${activeLanes}×`
+          : lanServerConfig
+            ? "LAN Server"
+            : PREFS.strictLanOnly
+              ? "LAN Strict"
+              : "LAN Turbo";
+
+    $$(".js-lan-turbo-label").forEach((el) => {
+      el.textContent = labelText;
+    });
+
+    $$(".lan-nav-pill").forEach((btn) => {
+      btn.classList.toggle("is-lan-active", isLanHot);
+    });
+
+    if (sendTransportHint) {
+      if (lanTcpCount > 0) {
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-tcp";
+        sendTransportHint.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>LAN TCP Pipe</span>';
+      } else if (lanDirectCount > 0) {
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-direct";
+        sendTransportHint.innerHTML = `<i class="bi bi-lightning-charge-fill"></i><span>LAN Direct · ${activeLanes}×</span>`;
+      } else if (wanTurboCount > 0) {
+        sendTransportHint.className = "hidden sm:inline-flex lan-badge-wan";
+        sendTransportHint.innerHTML = `<i class="bi bi-globe2"></i><span>Direct P2P · ${activeLanes}×</span>`;
+      } else {
+        sendTransportHint.className =
+          "hidden sm:inline-flex items-center gap-1 text-[10px] text-text/55 font-medium px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] whitespace-nowrap";
+        sendTransportHint.innerHTML = '<i class="bi bi-shield-check text-primary"></i><span>Encrypted P2P</span>';
+      }
+    }
+
+    // Live telemetry banner inside Send Files card (appears cleanly when ≥1 peer is connected)
+    if (lanLiveBanner) {
+      if (entries.length === 0) {
+        lanLiveBanner.classList.add("hidden");
+      } else {
+        lanLiveBanner.classList.remove("hidden");
+        const rttNote = bestRtt !== null ? ` • ${bestRtt < 1 ? "<1" : Math.round(bestRtt)}ms RTT` : "";
+        const peerNote = entries.length === 1 ? entries[0][1].name : `${entries.length} linked devices`;
+
+        if (lanTcpCount > 0) {
+          lanLiveBanner.classList.remove("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct LAN TCP Pipe Active";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-tcp";
+            lanLiveBadge.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>Kernel TCP</span>';
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Local router direct stream${rttNote}`;
+          }
+        } else if (lanDirectCount > 0) {
+          lanLiveBanner.classList.remove("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-accent animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct LAN Turbo Locked";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-direct";
+            lanLiveBadge.innerHTML = `<i class="bi bi-lightning-charge-fill"></i><span>${activeLanes}× Raw Lanes</span>`;
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Local Wi-Fi/router link, PeerServer bypassed${rttNote}`;
+          }
+        } else if (wanTurboCount > 0) {
+          lanLiveBanner.classList.add("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-sky-400 animate-pulse flex-shrink-0";
+          if (lanLiveTitle) lanLiveTitle.textContent = "Direct P2P Turbo Active";
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-wan";
+            lanLiveBadge.innerHTML = `<i class="bi bi-globe2"></i><span>${activeLanes}× P2P</span>`;
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • Multi-lane encrypted WebRTC${rttNote}`;
+          }
+        } else {
+          lanLiveBanner.classList.add("is-wan");
+          if (lanLiveDot) lanLiveDot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0";
+          if (lanLiveTitle) {
+            lanLiveTitle.textContent = probingCount > 0 ? "Probing Direct LAN Route…" : "Encrypted P2P Connected";
+          }
+          if (lanLiveBadge) {
+            lanLiveBadge.className = "lan-badge-probing";
+            lanLiveBadge.innerHTML = probingCount > 0
+              ? '<i class="bi bi-radar"></i><span>Testing LAN</span>'
+              : '<i class="bi bi-plug-fill"></i><span>Standard</span>';
+          }
+          if (lanLiveSub) {
+            lanLiveSub.textContent = `${peerNote} • ${probingCount > 0 ? "Checking local router host-to-host path" : "Encrypted peer channel ready"}${rttNote}`;
+          }
+        }
+      }
+    }
+
+    if (lanTurboModal && !lanTurboModal.classList.contains("hidden")) {
+      renderLanTurboModal();
+    }
+  }
+
+  function attachLanTurboSession(pid) {
+    const entry = connections[pid];
+    if (!entry || entry.turbo || !LanTurbo) return;
+
+    const myId = getActiveLocalPeerId();
+    if (!myId) return;
+
+    const session = new LanTurbo.LanTurboPeerSession({
+      localPeerId: myId,
+      remotePeerId: pid,
+      isMobile: localPlatform !== "laptop",
+      desiredLanes: getEffectiveDesiredLanes(),
+      strictLanOnly: PREFS.strictLanOnly,
+      fallbackPeerConnection: entry.conn?.peerConnection || null,
+      getIceServers: () => getPeerOptions().config?.iceServers || [],
+      sendSignal: (msg) => {
+        if (entry.conn && entry.conn.open) {
+          try {
+            entry.conn.send(msg);
+          } catch (_e) {}
+        }
+      },
+      onChunk: (frame) => {
+        handleTurboRawChunk(frame, pid);
+      },
+      onStateChange: (snapshot) => {
+        if (!connections[pid]) return;
+        connections[pid].turboStatus = snapshot;
+
+        // Celebrate first confirmed Direct LAN lock!
+        if (
+          snapshot.isLanDirect &&
+          snapshot.activeLanes > 0 &&
+          !connections[pid].lanNotified
+        ) {
+          connections[pid].lanNotified = true;
+          const rttStr =
+            snapshot.routeInfo && snapshot.routeInfo.rttMs !== null
+              ? ` • ${snapshot.routeInfo.rttMs}ms`
+              : "";
+          showToast(
+            `⚡ Direct LAN locked with ${connections[pid].name} (${snapshot.activeLanes}× parallel lanes${rttStr})`,
+            "success",
+            4200
+          );
+        }
+
+        // Update peer route badge in-place if present (avoids tearing down whole peer list unnecessarily)
+        const badgeEl = document.getElementById(`route-badge-${pid}`);
+        if (badgeEl) {
+          const info = getPeerRouteBadgeInfo(pid);
+          badgeEl.className = `${info.cls} peer-route-badge-btn cursor-pointer hover:brightness-110 transition-all`;
+          badgeEl.innerHTML = renderRouteBadgeInner(info);
+          badgeEl.title = `${info.title} (Click to inspect route)`;
+          const cardEl = typeof badgeEl.closest === "function" ? badgeEl.closest(".peer-conn-card") : null;
+          if (cardEl) {
+            cardEl.classList.toggle("is-lan", Boolean(snapshot.isLanDirect || isLanHttpPipeAvailableForPeer(pid)));
+          }
+        } else {
+          updatePeerListUi();
+        }
+        updateGlobalLanIndicators();
+      },
+    });
+
+    entry.turbo = session;
+    entry.turboStatus = session.getStatusSnapshot();
+
+    session.start({
+      lanServerOrigin: lanServerConfig ? window.location.origin : null,
+      lanServerClientId: lanServerClient ? myId : null,
+    });
+  }
+
+  function setupConnection(conn, name, platform = "laptop", handshakeAccepted = false) {
     const pid = conn.peer;
 
-    // Deduplication check
+    // Deduplication check: if upgrading the same connection after handshake, never rebind listeners
+    if (connections[pid] && connections[pid].conn === conn) {
+      if (name) connections[pid].name = name;
+      if (platform) connections[pid].platform = platform;
+      if (handshakeAccepted) {
+        connections[pid].handshakeAccepted = true;
+        if (conn.open) attachLanTurboSession(pid);
+      }
+      updatePeerListUi();
+      updateChatPresence();
+      updateTargetPeerSelector();
+      updateGlobalLanIndicators();
+      return;
+    }
+
     if (connections[pid] && connections[pid].conn !== conn) {
+      try { connections[pid].turbo?.destroy(); } catch (_e) {}
       try { connections[pid].conn.close(); } catch (_e) {}
     }
 
-    const { code, emojis } = computeSecurityVerification(peer.id, pid);
+    const { code, emojis } = computeSecurityVerification(getActiveLocalPeerId() || "", pid);
 
     connections[pid] = {
       conn,
@@ -1386,7 +2035,11 @@ document.addEventListener("DOMContentLoaded", () => {
       security: { code, emojis },
       rtt: null,
       status: "active",
+      handshakeAccepted,
       pingTimer: null,
+      turbo: null,
+      turboStatus: null,
+      lanNotified: false,
     };
 
     // Ensure raw ArrayBuffer is expected on this WebRTC channel
@@ -1404,6 +2057,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (connections[pid]?.pingTimer) {
         clearInterval(connections[pid].pingTimer);
       }
+      if (connections[pid]?.turbo) {
+        try { connections[pid].turbo.destroy(); } catch (_e) {}
+      }
       delete connections[pid];
 
       if (reason) showToast(reason, "info");
@@ -1411,6 +2067,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updatePeerListUi();
       updateChatPresence();
       updateTargetPeerSelector();
+      updateGlobalLanIndicators();
 
       if (isRoomHost) publishRoster();
     };
@@ -1444,6 +2101,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       } catch (_e) {}
 
+      // Start Direct LAN Turbo probe & upgrade once handshake is accepted
+      if (connections[pid] && connections[pid].handshakeAccepted) {
+        attachLanTurboSession(pid);
+      }
+
       if (isRoomHost) publishRoster();
     };
 
@@ -1454,7 +2116,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     conn.on("data", (data) => {
-      // 1. Raw binary chunk
+      // 1. Raw binary chunk (fallback PeerJS channel or LAN turbo frame sent over fallback)
       if (data instanceof Blob) {
         data.arrayBuffer().then((buffer) => handleRawTransferChunk(buffer, pid)).catch(() => {});
         return;
@@ -1465,13 +2127,27 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (!data || typeof data !== "object") return;
 
-      // 2. Structured messages
+      // 2. Direct LAN Turbo signaling & benchmark control messages
+      if (
+        typeof data.type === "string" &&
+        (data.type.startsWith("lan-turbo-") || data.type.startsWith("lan-bench-"))
+      ) {
+        if (connections[pid] && !connections[pid].turbo && connections[pid].handshakeAccepted) {
+          attachLanTurboSession(pid);
+        }
+        if (connections[pid] && connections[pid].turbo) {
+          connections[pid].turbo.handleSignalMessage(data);
+        }
+        return;
+      }
+
+      // 3. Structured messages
       switch (data.type) {
         // Handshake response
         case "handshake-response":
           if (data.accepted) {
             showToast(`Connection accepted by ${data.name || "Peer"}`, "success");
-            setupConnection(conn, data.name || "Peer", data.platform || "laptop");
+            setupConnection(conn, data.name || "Peer", data.platform || "laptop", true);
             sounds.play("connect");
           } else {
             showToast("Connection declined by peer", "warning");
@@ -1508,12 +2184,13 @@ document.addEventListener("DOMContentLoaded", () => {
         // Mesh Gossip
         case "peer-gossip":
           if (Array.isArray(data.peers)) {
+            const myId = getActiveLocalPeerId();
             data.peers.forEach((p) => {
-              if (p.peerId && p.peerId !== peer.id && !roomPeers[p.peerId]) {
+              if (p.peerId && p.peerId !== myId && !roomPeers[p.peerId]) {
                 upsertRoomPeer(p.peerId, p.name, p.platform);
               }
             });
-            renderNearbyPeers(Object.values(roomPeers).filter((p) => p.peerId !== peer?.id));
+            renderNearbyPeers(Object.values(roomPeers).filter((p) => p.peerId !== myId));
           }
           break;
 
@@ -1525,6 +2202,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // File Transfer: Accept/Decline Offer
         case "file-offer-response":
           handleFileOfferResponse(data, pid);
+          break;
+
+        // File Transfer: Direct LAN Raw HTTP/TCP Stream Ready (when running `npm start`)
+        case "lan-http-stream-ready":
+          handleLanHttpStreamReady(data, pid);
           break;
 
         // File Transfer: Metadata (Start)
@@ -1555,7 +2237,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Clean Disconnect
         case "disconnect-notice":
-          removeConnection(`${name} disconnected`);
+          removeConnection(`${connections[pid]?.name || name} disconnected`);
           try { conn.close(); } catch (_e) {}
           break;
 
@@ -1565,12 +2247,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     conn.on("close", () => {
-      removeConnection(`${name} disconnected`);
+      removeConnection(`${connections[pid]?.name || name} disconnected`);
     });
 
     conn.on("error", (err) => {
       console.warn("Connection error with", name, err);
-      removeConnection(`Connection dropped with ${name}`);
+      removeConnection(`Connection dropped with ${connections[pid]?.name || name}`);
     });
   }
 
@@ -1595,10 +2277,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function updatePeerRttDisplay(pid, rtt) {
     const el = document.getElementById(`rtt-${pid}`);
     if (el) {
-      const color = rtt < 60 ? "text-emerald-400" : rtt < 150 ? "text-yellow-400" : "text-red-400";
-      el.className = `text-[10px] font-mono font-medium ${color} flex items-center gap-1`;
-      el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current"></span>${rtt}ms`;
+      const color = rtt < 15 ? "text-accent" : rtt < 60 ? "text-emerald-400" : rtt < 150 ? "text-yellow-400" : "text-red-400";
+      el.className = `text-[10px] font-mono tabular-nums font-medium ${color} inline-flex items-center gap-1 flex-shrink-0`;
+      el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0"></span><span>${rtt < 1 ? "<1" : Math.round(rtt)}ms</span>`;
     }
+    updateGlobalLanIndicators();
   }
 
   function requestConnection(remoteId) {
@@ -1606,16 +2289,43 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Please enter a Peer ID first", "warning");
       return;
     }
-    if (!peer || peer.destroyed) {
+    const myId = getActiveLocalPeerId();
+    if (!myId) {
       showToast("P2P engine is not ready yet", "warning");
       return;
     }
-    if (remoteId === peer.id) {
+    if (remoteId === myId) {
       showToast("Cannot connect to yourself", "warning");
       return;
     }
     if (connections[remoteId]) {
       showToast("Already connected to this device", "info");
+      return;
+    }
+
+    // If both peers are on the local LAN Server (`npm start`) AND either PeerJS is offline OR target is LAN-server-discovered,
+    // prefer zero-internet local LAN WebRTC signaling!
+    const targetEntry = roomPeers[remoteId];
+    if (
+      lanServerClient &&
+      lanServerClient.connected &&
+      ((targetEntry && targetEntry.lanServer) || !peer || peer.destroyed || peer.disconnected)
+    ) {
+      showToast(`Linking directly over local LAN...`, "info");
+      initiateLanServerControlConnection(remoteId)
+        .then((lanConn) => {
+          if (lanConn) {
+            setupConnection(lanConn, targetEntry?.name || "Connecting...", targetEntry?.platform || "laptop", false);
+          }
+        })
+        .catch(() => {
+          showToast("Direct LAN signaling failed", "error");
+        });
+      return;
+    }
+
+    if (!peer || peer.destroyed) {
+      showToast("P2P engine is not ready yet", "warning");
       return;
     }
 
@@ -1630,7 +2340,7 @@ document.addEventListener("DOMContentLoaded", () => {
       reliable: true,
     });
 
-    setupConnection(conn, "Connecting...", "laptop");
+    setupConnection(conn, "Connecting...", "laptop", false);
   }
 
   window.disconnectPeer = (id) => {
@@ -1639,6 +2349,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       if (target.open) target.send({ type: "disconnect-notice" });
     } catch (_e) {}
+    try { connections[id].turbo?.destroy(); } catch (_e) {}
     try { target.close(); } catch (_e) {}
     if (connections[id]?.pingTimer) clearInterval(connections[id].pingTimer);
     delete connections[id];
@@ -1646,6 +2357,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updatePeerListUi();
     updateChatPresence();
     updateTargetPeerSelector();
+    updateGlobalLanIndicators();
 
     if (isRoomHost) publishRoster();
     showToast("Peer disconnected", "info");
@@ -1760,8 +2472,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const entries = Object.entries(connections);
     if (entries.length === 0) {
       peerList.innerHTML = `
-        <li class="text-xs text-text/40 italic text-center py-6 flex flex-col items-center gap-2">
-          <i class="bi bi-diagram-3 text-lg text-text/20"></i>
+        <li class="text-xs text-text/45 italic text-center py-6 flex flex-col items-center gap-2">
+          <div class="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+            <i class="bi bi-diagram-3 text-base text-text/30"></i>
+          </div>
           <span>No active connections.<br>Connect to a nearby device to start transferring.</span>
         </li>
       `;
@@ -1771,45 +2485,67 @@ document.addEventListener("DOMContentLoaded", () => {
 
     entries.forEach(([id, data]) => {
       const li = document.createElement("li");
-      li.className = "connection-card";
+      const isLan = Boolean(isLanHttpPipeAvailableForPeer(id) || data.turboStatus?.isLanDirect);
+      li.className = `peer-conn-card${isLan ? " is-lan" : ""}`;
 
-      const rttText = data.rtt ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>${data.rtt}ms` : `<span class="w-1.5 h-1.5 rounded-full bg-text/30"></span>--`;
+      const rttColor = data.rtt && data.rtt < 15 ? "bg-accent" : "bg-emerald-400";
+      const rttText =
+        typeof data.rtt === "number"
+          ? `<span class="w-1.5 h-1.5 rounded-full ${rttColor} flex-shrink-0"></span><span>${data.rtt < 1 ? "<1" : data.rtt}ms</span>`
+          : `<span class="w-1.5 h-1.5 rounded-full bg-text/30 flex-shrink-0"></span><span>--</span>`;
       const platformIcon = getPlatformIcon(data.platform);
+      const badge = getPeerRouteBadgeInfo(id);
 
       li.innerHTML = `
-        <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="flex items-center gap-2.5 min-w-0">
           <div class="peer-icon">
             <i class="bi ${platformIcon} text-base"></i>
           </div>
 
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2 min-w-0">
-              <p class="peer-name truncate min-w-0 flex-1">${escapeHtml(data.name)}</p>
-              <span class="security-badge text-[9px] px-1.5 py-0" title="Security Verification Code: verify this matches on both devices">
-                🔒 ${data.security?.code || "OK"}
-              </span>
-            </div>
+            <p class="peer-name truncate">${escapeHtml(data.name)}</p>
+            <p class="text-[10px] font-mono text-text/40 truncate">${escapeHtml(id.slice(-8))}</p>
+          </div>
 
-            <div class="flex items-center gap-2 mt-0.5 min-w-0">
-              <span id="rtt-${id}" class="text-[10px] font-mono text-text/40 flex items-center gap-1 flex-shrink-0">${rttText}</span>
-              <span class="text-[10px] text-text/20 flex-shrink-0">•</span>
-              <span class="peer-id truncate text-[10px] min-w-0">${escapeHtml(id.slice(0, 20))}...</span>
-            </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-accent peer-speedtest-btn" title="Run LAN link speed test with this device">
+              <i class="bi bi-speedometer2 text-xs"></i>
+            </button>
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-primary quick-send-peer-btn" title="Send files to this device">
+              <i class="bi bi-cloud-arrow-up text-xs"></i>
+            </button>
+            <button type="button" class="icon-btn-sm text-text/55 hover:text-red-400 disconnect-btn" title="Disconnect device">
+              <i class="bi bi-x-lg text-[11px]"></i>
+            </button>
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5 flex-shrink-0">
-          <button class="icon-btn text-text/50 hover:text-primary quick-send-peer-btn" title="Send files to this device">
-            <i class="bi bi-cloud-arrow-up text-xs"></i>
-          </button>
-          <button class="icon-btn text-text/50 hover:text-red-400 disconnect-btn" title="Disconnect device">
-            <i class="bi bi-x-lg text-xs"></i>
-          </button>
+        <div class="peer-conn-footer">
+          <div class="flex items-center gap-2 min-w-0 flex-wrap">
+            <button type="button" id="route-badge-${escapeHtml(id)}" class="${badge.cls} peer-route-badge-btn cursor-pointer hover:brightness-110 transition-all" title="${escapeHtml(badge.title)} (Click to inspect route)">
+              ${renderRouteBadgeInner(badge)}
+            </button>
+            <span id="rtt-${escapeHtml(id)}" class="text-[10px] font-mono tabular-nums text-text/50 inline-flex items-center gap-1 flex-shrink-0">${rttText}</span>
+          </div>
+
+          <span class="security-badge flex-shrink-0" title="Security Verification Code: verify this matches on both devices">
+            <i class="bi bi-shield-lock-fill text-[9px]"></i>
+            <span>${escapeHtml(data.security?.code || "OK")}</span>
+          </span>
         </div>
       `;
 
+      li.querySelector(".peer-route-badge-btn")?.addEventListener("click", () => {
+        openLanTurboModal();
+      });
+
       li.querySelector(".disconnect-btn")?.addEventListener("click", () => {
         window.disconnectPeer(id);
+      });
+
+      li.querySelector(".peer-speedtest-btn")?.addEventListener("click", () => {
+        openLanTurboModal();
+        runLanSpeedTestForPeer(id);
       });
 
       li.querySelector(".quick-send-peer-btn")?.addEventListener("click", () => {
@@ -1821,6 +2557,273 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     scanNearbyPeers();
+  }
+
+  // ═══════════════════════════════════════════
+  // Direct LAN Turbo Modal, Settings & 1-Click Speed Test
+  // ═══════════════════════════════════════════
+  function updateLaneButtonsUi() {
+    $$(".lan-lanes-btn").forEach((btn) => {
+      const val = btn.getAttribute("data-lanes");
+      const active = val === String(PREFS.turboLanes);
+      btn.className = active
+        ? "lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-primary/20 text-primary border-primary/50"
+        : "lan-lanes-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all bg-white/5 text-text/65 hover:text-white border-white/10";
+    });
+    if (lanLanesHint) {
+      lanLanesHint.textContent =
+        PREFS.turboLanes === "auto"
+          ? `Auto (${getEffectiveDesiredLanes()}× active)`
+          : `${getEffectiveDesiredLanes()}× parallel lanes`;
+    }
+  }
+
+  function renderLanTurboModal() {
+    updateLaneButtonsUi();
+
+    if (strictLanCheckbox) strictLanCheckbox.checked = PREFS.strictLanOnly;
+    if (lanHttpPipeRow) {
+      lanHttpPipeRow.classList.toggle("hidden", !(lanServerConfig && lanServerConfig.httpPipeEnabled));
+    }
+    if (lanHttpPipeCheckbox) lanHttpPipeCheckbox.checked = PREFS.useLanHttpPipe;
+
+    if (lanEngineModePill && lanEngineDesc) {
+      if (lanServerConfig) {
+        const ips = Array.isArray(lanServerConfig.lanIps) && lanServerConfig.lanIps.length
+          ? lanServerConfig.lanIps.map((ip) => `http://${ip}:${lanServerConfig.port}`).join(", ")
+          : window.location.origin;
+        lanEngineModePill.className = "lan-badge-tcp";
+        lanEngineModePill.innerHTML = '<i class="bi bi-hdd-network-fill"></i><span>LAN Server Active</span>';
+        lanEngineDesc.textContent = `Offline LAN discovery + Direct Raw TCP/HTTP Pipe + Multi-Lane WebRTC Turbo enabled. Open ${ips} on other Wi-Fi devices.`;
+      } else {
+        lanEngineModePill.className = "lan-badge-direct";
+        lanEngineModePill.innerHTML = '<i class="bi bi-lightning-charge-fill"></i><span>Browser LAN Turbo</span>';
+        lanEngineDesc.textContent =
+          "Peers on the same Wi-Fi/LAN automatically upgrade to parallel raw UDP/SCTP host-to-host channels directly across your local router — zero PeerServer data relay and zero BinaryPack overhead.";
+      }
+    }
+
+    const entries = Object.entries(connections);
+    if (lanRoutesCount) {
+      lanRoutesCount.textContent = `${entries.length} peer${entries.length === 1 ? "" : "s"}`;
+    }
+
+    if (lanPeerRoutesList) {
+      if (entries.length === 0) {
+        lanPeerRoutesList.innerHTML = `
+          <li class="p-3 rounded-xl bg-white/3 border border-white/6 text-xs text-text/45 text-center italic">
+            Connect to a nearby device to inspect its live LAN/WAN path and parallel lanes.
+          </li>
+        `;
+      } else {
+        lanPeerRoutesList.innerHTML = "";
+        entries.forEach(([pid, data]) => {
+          const badge = getPeerRouteBadgeInfo(pid);
+          const st = data.turboStatus;
+          const rttVal = st?.routeInfo?.rttMs ?? data.rtt;
+          const routeDetail = isLanHttpPipeAvailableForPeer(pid)
+            ? "Local Server Kernel TCP Stream Pipe (zero DTLS overhead)"
+            : st?.routeInfo?.detail || "Negotiating direct LAN channels...";
+          const lastBench = st?.lastBenchResult?.formatted?.combined
+            ? ` • Peak ${st.lastBenchResult.formatted.combined}`
+            : "";
+
+          const li = document.createElement("li");
+          li.className = "p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-2.5";
+          li.innerHTML = `
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-semibold text-white truncate max-w-[160px]">${escapeHtml(data.name)}</span>
+                <span class="${badge.cls}">${renderRouteBadgeInner(badge)}</span>
+              </div>
+              <p class="text-[10px] font-mono tabular-nums text-text/50 truncate mt-1">
+                ${escapeHtml(routeDetail)}${typeof rttVal === "number" ? ` • ${rttVal < 1 ? "<1" : Math.round(rttVal)}ms` : ""}${escapeHtml(lastBench)}
+              </p>
+            </div>
+            <button type="button" class="btn-connect-sm text-[10px] py-1 px-2.5 run-peer-bench-btn flex-shrink-0">
+              <i class="bi bi-speedometer2"></i> Test
+            </button>
+          `;
+          li.querySelector(".run-peer-bench-btn")?.addEventListener("click", () => {
+            runLanSpeedTestForPeer(pid);
+          });
+          lanPeerRoutesList.appendChild(li);
+        });
+      }
+    }
+  }
+
+  function openLanTurboModal() {
+    if (!lanTurboModal) return;
+    closeMobileMenu();
+    renderLanTurboModal();
+    lanTurboModal.classList.remove("hidden");
+    lanTurboModal.classList.add("flex");
+  }
+
+  function closeLanTurboModal() {
+    if (!lanTurboModal) return;
+    lanTurboModal.classList.add("hidden");
+    lanTurboModal.classList.remove("flex");
+  }
+
+  async function runLanSpeedTestForPeer(targetPid = null) {
+    const pid =
+      targetPid ||
+      Object.keys(connections).find((id) => connections[id]?.turbo?.getOpenLanes?.().length > 0) ||
+      Object.keys(connections)[0];
+
+    if (!pid || !connections[pid]) {
+      showToast("Connect to a device first to run a LAN speed test", "warning");
+      return;
+    }
+
+    const entry = connections[pid];
+    if (!entry.turbo || entry.turbo.getOpenLanes().length === 0) {
+      showToast("Direct LAN Turbo lanes are not open yet — try Re-probe LAN", "warning");
+      return;
+    }
+
+    if (lanBenchResultCard) lanBenchResultCard.classList.remove("hidden");
+    if (lanBenchStatus) lanBenchStatus.textContent = `Testing ${entry.name}...`;
+    if (lanBenchMbs) lanBenchMbs.textContent = "...";
+    if (lanBenchMbps) lanBenchMbps.textContent = "";
+    if (lanBenchMeta) lanBenchMeta.textContent = `${entry.turbo.getOpenLanes().length}× lanes`;
+    if (lanBenchBar) lanBenchBar.style.width = "5%";
+    if (lanSpeedtestBtn) lanSpeedtestBtn.disabled = true;
+
+    try {
+      const res = await entry.turbo.runSpeedTest({
+        durationMs: 2500,
+        onProgress: ({ speedBps, pct }) => {
+          const fmt = LanTurbo ? LanTurbo.formatThroughput(speedBps) : { mbs: formatSpeed(speedBps), mbps: "" };
+          if (lanBenchMbs) lanBenchMbs.textContent = fmt.mbs;
+          if (lanBenchMbps) lanBenchMbps.textContent = fmt.mbps;
+          if (lanBenchBar) lanBenchBar.style.width = `${Math.round(pct)}%`;
+        },
+      });
+
+      if (lanBenchBar) lanBenchBar.style.width = "100%";
+      if (lanBenchMbs) lanBenchMbs.textContent = res.formatted.mbs;
+      if (lanBenchMbps) lanBenchMbps.textContent = res.formatted.mbps;
+      const routeTag = res.isLanDirect ? "⚡ LAN Direct" : "🌐 Direct P2P";
+      const rttTag = res.rttMs !== null ? ` • ${res.rttMs}ms` : "";
+      if (lanBenchStatus) {
+        lanBenchStatus.textContent = res.verifiedByReceiver ? "Verified RX throughput" : "TX throughput";
+      }
+      if (lanBenchMeta) {
+        lanBenchMeta.textContent = `${routeTag} • ${res.lanesUsed}× lanes${rttTag}`;
+      }
+
+      showToast(
+        `${routeTag} Speed Test: ${res.formatted.combined} (${res.lanesUsed}× lanes${rttTag})`,
+        "success",
+        5000
+      );
+      renderLanTurboModal();
+    } catch (err) {
+      if (lanBenchStatus) lanBenchStatus.textContent = err.message || "Benchmark failed";
+      showToast(err.message || "LAN speed test failed", "warning");
+    } finally {
+      if (lanSpeedtestBtn) lanSpeedtestBtn.disabled = false;
+    }
+  }
+
+  // Wire LAN Turbo Modal Buttons & Controls
+  $$(".js-lan-turbo-btn").forEach((btn) => {
+    btn.addEventListener("click", openLanTurboModal);
+  });
+  if (lanTurboModalClose) {
+    lanTurboModalClose.addEventListener("click", closeLanTurboModal);
+  }
+  if (lanTurboModal) {
+    lanTurboModal.addEventListener("click", (e) => {
+      if (e.target === lanTurboModal) closeLanTurboModal();
+    });
+  }
+  if (roomModal) {
+    roomModal.addEventListener("click", (e) => {
+      if (e.target === roomModal) {
+        roomModal.classList.add("hidden");
+        roomModal.classList.remove("flex");
+      }
+    });
+  }
+  if (filePreviewModal) {
+    filePreviewModal.addEventListener("click", (e) => {
+      if (e.target === filePreviewModal) {
+        filePreviewModal.classList.add("hidden");
+        filePreviewModal.classList.remove("flex");
+      }
+    });
+  }
+  $$(".lan-lanes-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-lanes") || "auto";
+      PREFS.turboLanes = val;
+      setStored("turbo_lanes", val);
+      updateLaneButtonsUi();
+      const desired = getEffectiveDesiredLanes();
+      Object.values(connections).forEach((entry) => {
+        if (entry.turbo) entry.turbo.updateConfig({ desiredLanes: desired });
+      });
+      if (getActiveLocalPeerId()) renderMyDeviceCard(getActiveLocalPeerId());
+      showToast(`Parallel LAN lanes set to ${val === "auto" ? `Auto (${desired}×)` : `${desired}×`}`, "info");
+    });
+  });
+
+  if (strictLanCheckbox) {
+    strictLanCheckbox.addEventListener("change", () => {
+      PREFS.strictLanOnly = Boolean(strictLanCheckbox.checked);
+      setStored("strict_lan_only", PREFS.strictLanOnly ? "true" : "false");
+      Object.values(connections).forEach((entry) => {
+        if (entry.turbo) entry.turbo.updateConfig({ strictLanOnly: PREFS.strictLanOnly });
+      });
+      updateGlobalLanIndicators();
+      showToast(
+        PREFS.strictLanOnly
+          ? "Strict LAN-Only Mode ON (WAN fallback blocked)"
+          : "Strict LAN-Only Mode OFF (auto LAN priority + WAN fallback)",
+        "info"
+      );
+    });
+  }
+
+  if (lanHttpPipeCheckbox) {
+    lanHttpPipeCheckbox.addEventListener("change", () => {
+      PREFS.useLanHttpPipe = Boolean(lanHttpPipeCheckbox.checked);
+      setStored("use_lan_http_pipe", PREFS.useLanHttpPipe ? "true" : "false");
+      updatePeerListUi();
+      updateGlobalLanIndicators();
+      showToast(
+        PREFS.useLanHttpPipe
+          ? "Direct LAN Raw TCP/HTTP Pipe enabled"
+          : "Using Direct LAN WebRTC Multi-Lane Turbo",
+        "info"
+      );
+    });
+  }
+
+  if (lanReprobeBtn) {
+    lanReprobeBtn.addEventListener("click", () => {
+      const entries = Object.values(connections);
+      if (!entries.length) {
+        showToast("No connected peers to re-probe", "info");
+        return;
+      }
+      entries.forEach((entry) => {
+        entry.lanNotified = false;
+        if (entry.turbo) entry.turbo.reprobe();
+      });
+      showToast("Re-probing direct local LAN routes...", "info");
+      renderLanTurboModal();
+    });
+  }
+
+  if (lanSpeedtestBtn) {
+    lanSpeedtestBtn.addEventListener("click", () => {
+      runLanSpeedTestForPeer(null);
+    });
   }
 
   function updateTargetPeerSelector() {
@@ -2444,27 +3447,69 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ═══════════════════════════════════════════
-  // Core Streaming Transfer Engine (Sender)
+  // Core Streaming Transfer Engine (Sender — 3-Tier LAN Turbo Pipeline)
+  //   Tier 0: Direct LAN Raw TCP/HTTP Pipe (when running `npm start` on LAN)
+  //   Tier 1: Pure-Browser Direct LAN Multi-Lane Raw WebRTC Turbo (4× parallel raw channels)
+  //   Tier 2: Optimized PeerJS Compatibility Fallback (for older LocalShare v2.1 peers)
   // ═══════════════════════════════════════════
+  function getTransferBadgeHtml(transport, lanes) {
+    if (transport === "lan-tcp") {
+      return '<span class="lan-badge-tcp"><i class="bi bi-hdd-network-fill"></i><span>LAN TCP</span></span>';
+    }
+    if (transport === "lan-direct") {
+      return `<span class="lan-badge-direct"><i class="bi bi-lightning-charge-fill"></i><span>LAN · ${lanes || 1}×</span></span>`;
+    }
+    if (transport === "wan-turbo" || transport === "wan-p2p") {
+      return `<span class="lan-badge-wan"><i class="bi bi-globe2"></i><span>P2P · ${lanes || 1}×</span></span>`;
+    }
+    return '<span class="lan-badge-probing"><i class="bi bi-plug-fill"></i><span>PeerJS</span></span>';
+  }
+
   async function streamFile(file, peerData) {
     const { conn, name } = peerData;
+    const peerId = conn && conn.peer;
     if (!conn || !conn.open) {
       showToast("Transfer failed: Connection closed", "warning");
       return;
     }
 
+    const livePeer = connections[peerId] || peerData;
+    const turbo = livePeer.turbo || null;
+    const turboStatus = turbo ? turbo.getStatusSnapshot() : null;
+    const useHttpPipe = isLanHttpPipeAvailableForPeer(peerId) && file.size > 0;
+    const useWebRtcTurbo = Boolean(!useHttpPipe && turbo && turboStatus && turboStatus.canTransferTurbo);
+
+    // Enforce Strict LAN-Only mode if user explicitly turned it ON
+    if (PREFS.strictLanOnly && !useHttpPipe && !(turboStatus && turboStatus.isLanDirect)) {
+      showToast(
+        `Blocked transfer to ${name}: Strict LAN-Only Mode is active and no direct LAN link is locked.`,
+        "warning",
+        5000
+      );
+      return;
+    }
+
     const transferId = lsGenerateTransferId();
     const domId = `transfer-${transferId}`;
-    const totalChunks = file.size > 0 ? Math.ceil(file.size / FILE_CHUNK_SIZE) : 0;
     const mimeType = file.type || "application/octet-stream";
     const safeName = sanitizeFileName(file.name);
+
+    const initialTransport = useHttpPipe
+      ? "lan-tcp"
+      : useWebRtcTurbo
+        ? turboStatus.isLanDirect
+          ? "lan-direct"
+          : "wan-turbo"
+        : "peerjs";
+    const initialLanes = useWebRtcTurbo ? turboStatus.activeLanes : 1;
 
     outgoingTransfers[transferId] = {
       transferId,
       cancelled: false,
+      abortFn: null,
     };
 
-    let li = null, bar = null, meta = null, speedEl = null, etaEl = null;
+    let li = null, bar = null, meta = null, speedEl = null, etaEl = null, transportBadgeEl = null;
 
     if (sendProgressList) {
       li = document.createElement("li");
@@ -2472,28 +3517,33 @@ document.addEventListener("DOMContentLoaded", () => {
       li.className = "transfer-card";
 
       li.innerHTML = `
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <i class="bi ${getFileIcon(file.name)} text-primary text-base flex-shrink-0"></i>
-            <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[160px] sm:max-w-[220px]">${escapeHtml(safeName)}</span>
+        <div class="flex items-start justify-between gap-2.5 mb-2.5">
+          <div class="flex items-start gap-2.5 min-w-0 flex-1">
+            <div class="w-8 h-8 rounded-lg bg-primary/12 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary mt-0.5">
+              <i class="bi ${getFileIcon(file.name)} text-sm"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold text-white truncate">${escapeHtml(safeName)}</p>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                <span id="${domId}-transport">${getTransferBadgeHtml(initialTransport, initialLanes)}</span>
+                <span class="text-[10px] text-primary/90 font-medium truncate max-w-[140px]">→ ${escapeHtml(name)}</span>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="text-[10px] text-primary font-medium truncate max-w-[80px] min-[420px]:max-w-[120px] sm:max-w-none">→ ${escapeHtml(name)}</span>
-            <button class="icon-btn text-text/40 hover:text-red-400 cancel-send-btn" title="Cancel Transfer">
-              <i class="bi bi-x text-sm"></i>
-            </button>
-          </div>
+          <button type="button" class="icon-btn-sm text-text/45 hover:text-red-400 cancel-send-btn flex-shrink-0" title="Cancel Transfer">
+            <i class="bi bi-x-lg text-[10px]"></i>
+          </button>
         </div>
 
         <div class="progress-track">
-          <div id="${domId}-bar" class="progress-fill" style="width: 0%"></div>
+          <div id="${domId}-bar" class="progress-fill ${initialTransport === "lan-direct" || initialTransport === "lan-tcp" ? "bg-accent" : ""}" style="width: 0%"></div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
-          <span id="${domId}-meta">Computing checksum...</span>
+        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/55 tabular-nums">
+          <span id="${domId}-meta">Starting direct stream...</span>
           <div class="flex items-center gap-2 font-mono">
-            <span id="${domId}-speed"></span>
-            <span id="${domId}-eta" class="text-text/40"></span>
+            <span id="${domId}-speed" class="text-accent font-semibold"></span>
+            <span id="${domId}-eta" class="text-text/45"></span>
           </div>
         </div>
       `;
@@ -2509,9 +3559,143 @@ document.addEventListener("DOMContentLoaded", () => {
       meta = $(`${domId}-meta`);
       speedEl = $(`${domId}-speed`);
       etaEl = $(`${domId}-eta`);
+      transportBadgeEl = $(`${domId}-transport`);
     }
 
-    // 1. Compute Checksum
+    // ─── TIER 0: Direct LAN Raw TCP/HTTP Pipe (`server.cjs` via `npm start`) ───
+    if (useHttpPipe) {
+      try {
+        if (meta) meta.textContent = "Opening direct LAN TCP pipe...";
+        const { streamId, token } = await lanServerClient.createHttpStream({
+          fileName: safeName,
+          totalSize: file.size,
+          mimeType,
+        });
+
+        if (outgoingTransfers[transferId]?.cancelled) return;
+
+        // Notify receiver over encrypted P2P channel with single-use cryptographic stream token
+        conn.send({
+          type: "lan-http-stream-ready",
+          transferId,
+          streamId,
+          token,
+          fileName: safeName,
+          totalSize: file.size,
+          mimeType,
+        });
+
+        const res = await lanServerClient.uploadToHttpStream(file, streamId, token, {
+          onAbortRef: (fn) => {
+            if (outgoingTransfers[transferId]) outgoingTransfers[transferId].abortFn = fn;
+          },
+          onProgress: ({ sentBytes, totalBytes, pct, speedBps, etaSec }) => {
+            if (bar) bar.style.width = `${pct}%`;
+            if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(sentBytes)} / ${formatBytes(totalBytes)}`;
+            if (speedEl) speedEl.textContent = formatSpeedWithMbps(speedBps);
+            if (etaEl) etaEl.textContent = formatEta(etaSec);
+          },
+        });
+
+        if (res.cancelled || outgoingTransfers[transferId]?.cancelled) {
+          if (meta) meta.textContent = "Cancelled by user";
+          return;
+        }
+
+        if (bar) bar.style.width = "100%";
+        if (meta) {
+          meta.textContent = `Done in ${res.elapsedSec.toFixed(1)}s • Avg ${formatSpeedWithMbps(res.avgSpeedBps)}`;
+        }
+        if (speedEl) speedEl.textContent = `Peak ${formatSpeed(res.peakSpeedBps)}`;
+        if (etaEl) etaEl.textContent = "Awaiting verification";
+        sounds.play("complete");
+        return;
+      } catch (err) {
+        console.warn("LAN HTTP Pipe failed, falling back to WebRTC LAN Turbo:", err);
+        // Fall through cleanly to Tier 1!
+      }
+    }
+
+    // ─── TIER 1: Pure-Browser Direct LAN Multi-Lane Raw WebRTC Turbo ───
+    if (turbo && turbo.getOpenLanes().length > 0) {
+      try {
+        const result = await turbo.sendFile(file, {
+          transferId,
+          isCancelled: () => Boolean(outgoingTransfers[transferId]?.cancelled || !conn.open),
+          onStart: ({ chunkSize, totalChunks, activeLanes, isLanDirect }) => {
+            const modeTag = isLanDirect ? "lan-direct" : "wan-turbo";
+            if (transportBadgeEl) {
+              transportBadgeEl.innerHTML = getTransferBadgeHtml(modeTag, activeLanes);
+            }
+            conn.send({
+              type: "file-metadata",
+              transferId,
+              fileName: safeName,
+              totalSize: file.size,
+              totalChunks,
+              chunkSize,
+              mimeType,
+              checksum: null,
+              checksumDeferred: true,
+              transport: modeTag,
+              lanes: activeLanes,
+            });
+          },
+          onProgress: ({ sentBytes, totalBytes, pct, speedBps, etaSec }) => {
+            if (bar) bar.style.width = `${pct}%`;
+            if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(sentBytes)} / ${formatBytes(totalBytes)}`;
+            if (speedEl) speedEl.textContent = formatSpeedWithMbps(speedBps);
+            if (etaEl) etaEl.textContent = formatEta(etaSec);
+          },
+          fallbackSend: async (frameBuffer) => {
+            if (!conn.open) return;
+            const dc = conn.dataChannel;
+            if (dc && LanTurbo && dc.bufferedAmount >= MAX_BUFFERED_AMOUNT) {
+              await LanTurbo.waitForLaneDrain(dc, MAX_BUFFERED_AMOUNT);
+            }
+            conn.send(frameBuffer);
+          },
+        });
+
+        if (result.cancelled || outgoingTransfers[transferId]?.cancelled) {
+          if (meta) meta.textContent = "Cancelled by user";
+          return;
+        }
+
+        try {
+          conn.send({
+            type: "transfer-complete",
+            transferId,
+            fileName: safeName,
+            totalChunks: result.totalChunks,
+            checksum: result.checksum,
+          });
+        } catch (_e) {}
+
+        if (bar) bar.style.width = "100%";
+        if (file.size === 0) {
+          if (meta) meta.textContent = "Complete • 0 B";
+        } else {
+          if (meta) {
+            meta.textContent = `Done in ${result.elapsedSec.toFixed(1)}s • Avg ${formatSpeedWithMbps(result.avgSpeedBps)}`;
+          }
+          if (speedEl) speedEl.textContent = `Peak ${formatSpeed(result.peakSpeedBps)}`;
+          if (etaEl) etaEl.textContent = "Awaiting verification";
+        }
+
+        sounds.play("complete");
+        return;
+      } catch (err) {
+        console.warn("WebRTC LAN Turbo send failed, falling back to PeerJS:", err);
+        if (outgoingTransfers[transferId]?.cancelled) return;
+      }
+    }
+
+    // ─── TIER 2: Optimized PeerJS Compatibility Fallback (legacy v2.1 peers) ───
+    if (transportBadgeEl) transportBadgeEl.innerHTML = getTransferBadgeHtml("peerjs", 1);
+    const totalChunks = file.size > 0 ? Math.ceil(file.size / FILE_CHUNK_SIZE) : 0;
+
+    if (meta) meta.textContent = "Computing checksum...";
     let checksum = null;
     try {
       checksum = await lsComputeFileChecksum(file);
@@ -2525,7 +3709,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // 2. Send Metadata Frame
     try {
       conn.send({
         type: "file-metadata",
@@ -2535,6 +3718,7 @@ document.addEventListener("DOMContentLoaded", () => {
         totalChunks,
         mimeType,
         checksum,
+        transport: "peerjs",
       });
     } catch (err) {
       console.error("Failed to send metadata:", err);
@@ -2542,7 +3726,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Handle 0-byte file edge case
     if (file.size === 0) {
       if (bar) bar.style.width = "100%";
       if (meta) meta.textContent = "Complete • 0 B";
@@ -2550,33 +3733,35 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // 3. Stream binary chunks with backpressure
     let offset = 0;
     let chunkIndex = 0;
     const startTime = Date.now();
+    let lastUiMs = startTime;
+    const fastYield = LanTurbo ? LanTurbo.createFastYield() : () => Promise.resolve();
 
-    const sendNextChunk = async () => {
+    try {
       while (offset < file.size) {
         if (outgoingTransfers[transferId]?.cancelled) {
           if (meta) meta.textContent = "Cancelled by user";
           return;
         }
-
         if (!conn.open) {
           if (meta) meta.textContent = "Connection dropped";
           return;
         }
 
-        // WebRTC DataChannel backpressure management
         const dc = conn.dataChannel;
         if (dc && typeof dc.bufferedAmount === "number" && dc.bufferedAmount > MAX_BUFFERED_AMOUNT) {
-          await new Promise((resolve) => setTimeout(resolve, 8));
+          if (LanTurbo) {
+            await LanTurbo.waitForLaneDrain(dc, MAX_BUFFERED_AMOUNT);
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 4));
+          }
           continue;
         }
 
         const end = Math.min(offset + FILE_CHUNK_SIZE, file.size);
         let payload;
-
         try {
           const sliceBuffer = await lsReadBlobAsArrayBuffer(file.slice(offset, end));
           payload = new Uint8Array(sliceBuffer);
@@ -2591,27 +3776,32 @@ document.addEventListener("DOMContentLoaded", () => {
           conn.send(frame.buffer);
         } catch (err) {
           console.warn("Direct binary chunk send error:", err);
-          await new Promise((resolve) => setTimeout(resolve, 15));
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
         offset = end;
         chunkIndex += 1;
 
-        const pct = (offset / file.size) * 100;
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = offset / Math.max(elapsed, 0.001);
-        const remainingBytes = file.size - offset;
-        const eta = speed > 0 ? remainingBytes / speed : 0;
+        const now = Date.now();
+        if (now - lastUiMs >= 80 || offset >= file.size) {
+          lastUiMs = now;
+          const pct = (offset / file.size) * 100;
+          const elapsed = (now - startTime) / 1000;
+          const speed = offset / Math.max(elapsed, 0.001);
+          const remainingBytes = file.size - offset;
+          const eta = speed > 0 ? remainingBytes / speed : 0;
 
-        if (bar) bar.style.width = `${pct}%`;
-        if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(offset)} / ${formatBytes(file.size)}`;
-        if (speedEl) speedEl.textContent = formatSpeed(speed);
-        if (etaEl) etaEl.textContent = formatEta(eta);
+          if (bar) bar.style.width = `${pct}%`;
+          if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(offset)} / ${formatBytes(file.size)}`;
+          if (speedEl) speedEl.textContent = formatSpeedWithMbps(speed);
+          if (etaEl) etaEl.textContent = formatEta(eta);
+        }
 
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (chunkIndex % 4 === 0) {
+          await fastYield();
+        }
       }
 
-      // Signal completion
       try {
         conn.send({
           type: "transfer-complete",
@@ -2626,23 +3816,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const avgSpeed = file.size / Math.max(totalElapsed, 0.001);
 
       if (bar) bar.style.width = "100%";
-      if (meta) meta.textContent = `Completed in ${totalElapsed.toFixed(1)}s (${formatSpeed(avgSpeed)})`;
+      if (meta) meta.textContent = `Done in ${totalElapsed.toFixed(1)}s • Avg ${formatSpeedWithMbps(avgSpeed)}`;
       if (etaEl) etaEl.textContent = "Awaiting verification";
-
       sounds.play("complete");
-    };
-
-    try {
-      await sendNextChunk();
     } catch (err) {
       console.error("Send failed:", err);
       if (meta) meta.textContent = "Send failed";
+    } finally {
+      if (fastYield && typeof fastYield.dispose === "function") fastYield.dispose();
     }
   }
 
   function cancelOutgoingTransfer(transferId, conn, fileName) {
     if (outgoingTransfers[transferId]) {
       outgoingTransfers[transferId].cancelled = true;
+      if (typeof outgoingTransfers[transferId].abortFn === "function") {
+        try { outgoingTransfers[transferId].abortFn(); } catch (_e) {}
+      }
     }
     try {
       if (conn && conn.open) {
@@ -2663,8 +3853,191 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ═══════════════════════════════════════════
-  // Core Receiving Engine (Receiver)
+  // Core Receiving Engine (Receiver — Multi-Lane & LAN TCP Pipe)
   // ═══════════════════════════════════════════
+  function createIncomingCardUi(domId, fileName, peerName, transport, lanes, onCancel) {
+    if (!receivedFiles) return null;
+    const li = document.createElement("li");
+    li.id = domId;
+    li.className = "transfer-card";
+
+    li.innerHTML = `
+      <div class="flex items-start justify-between gap-2.5 mb-2.5">
+        <div class="flex items-start gap-2.5 min-w-0 flex-1">
+          <div class="w-8 h-8 rounded-lg bg-accent/12 border border-accent/25 flex items-center justify-center flex-shrink-0 text-accent mt-0.5">
+            <i class="bi ${getFileIcon(fileName)} text-sm"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold text-white truncate">${escapeHtml(fileName)}</p>
+            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+              <span>${getTransferBadgeHtml(transport, lanes)}</span>
+              <span class="text-[10px] text-accent/90 font-medium truncate max-w-[140px]">← ${escapeHtml(peerName)}</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="icon-btn-sm text-text/45 hover:text-red-400 cancel-receive-btn flex-shrink-0" title="Cancel Receiving">
+          <i class="bi bi-x-lg text-[10px]"></i>
+        </button>
+      </div>
+
+      <div class="progress-track">
+        <div id="${domId}-bar" class="progress-fill bg-accent" style="width: 0%"></div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/55 tabular-nums">
+        <span id="${domId}-meta">Receiving file...</span>
+        <div class="flex items-center gap-2 font-mono">
+          <span id="${domId}-speed" class="text-accent font-semibold"></span>
+          <span id="${domId}-eta" class="text-text/45"></span>
+        </div>
+      </div>
+    `;
+
+    li.querySelector(".cancel-receive-btn")?.addEventListener("click", onCancel);
+    receivedFiles.appendChild(li);
+    updateTransferVisibility();
+    return li;
+  }
+
+  function renderCompletedReceivedCard(element, { fileName, totalSize, peerName, verifiedChecksum, blob, url, transport, lanes, avgSpeedBps }) {
+    if (!element) return;
+    const safeName = escapeHtml(fileName);
+    const speedPart = avgSpeedBps > 0 ? `<span class="text-white/20">•</span><span class="font-mono tabular-nums text-accent">${escapeHtml(formatSpeedWithMbps(avgSpeedBps))}</span>` : "";
+
+    element.innerHTML = `
+      <div class="flex items-start justify-between gap-3 py-0.5">
+        <div class="flex items-start gap-3 min-w-0 flex-1">
+          <div class="w-10 h-10 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 text-accent mt-0.5">
+            <i class="bi ${getFileIcon(fileName)} text-lg"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-bold text-white truncate">${safeName}</p>
+            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-1 text-[10px] text-text/55">
+              ${getTransferBadgeHtml(transport, lanes)}
+              <span class="font-mono tabular-nums text-text/70">${formatBytes(totalSize)}</span>
+              <span class="text-white/20">•</span>
+              <span class="truncate max-w-[120px]">From ${escapeHtml(peerName)}</span>
+              ${speedPart}
+              <span class="text-white/20">•</span>
+              <span class="text-accent inline-flex items-center gap-0.5 whitespace-nowrap">
+                <i class="bi bi-shield-check"></i> ${verifiedChecksum ? "Verified" : "Saved"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button type="button" class="icon-btn-sm text-text/65 hover:text-primary preview-file-btn" title="Preview file">
+            <i class="bi bi-eye text-xs"></i>
+          </button>
+          <a href="${url}" download="${safeName}" class="btn-primary-sm text-xs py-1.5 px-3 inline-flex items-center gap-1.5" title="Download to device">
+            <i class="bi bi-download"></i><span class="hidden sm:inline">Save</span>
+          </a>
+        </div>
+      </div>
+    `;
+
+    element.querySelector(".preview-file-btn")?.addEventListener("click", () => {
+      openFilePreviewModal(fileName, blob, url);
+    });
+  }
+
+  async function handleLanHttpStreamReady(data, peerId) {
+    if (!lanServerClient) return;
+    const transferId = data.transferId;
+    if (transferId === undefined || incomingTransfers[transferId]) return;
+
+    const fileName = sanitizeFileName(data.fileName);
+    const totalSize = Number(data.totalSize || 0);
+    const mimeType = data.mimeType || "application/octet-stream";
+    const domId = `incoming-${transferId}`;
+    const peerName = connections[peerId]?.name || "Peer";
+
+    const transfer = {
+      transferId,
+      domId,
+      peerId,
+      fileName,
+      totalSize,
+      transport: "lan-tcp",
+      lanes: 1,
+      cancelled: false,
+      finalized: false,
+      abortFn: null,
+      element: null,
+    };
+
+    transfer.element = createIncomingCardUi(domId, fileName, peerName, "lan-tcp", 1, () => {
+      cancelIncomingTransfer(transferId, peerId, fileName);
+    });
+    incomingTransfers[transferId] = transfer;
+
+    try {
+      let safeMime = mimeType;
+      const ext = fileName.split(".").pop().toLowerCase();
+      if (["html", "htm", "svg", "xml"].includes(ext)) {
+        safeMime = "application/octet-stream";
+      }
+
+      const res = await lanServerClient.downloadFromHttpStream(data.streamId, data.token, {
+        totalSize,
+        mimeType: safeMime,
+        onAbortRef: (fn) => {
+          transfer.abortFn = fn;
+        },
+        onProgress: ({ receivedBytes, totalBytes, pct, speedBps, etaSec }) => {
+          const bar = $(`${domId}-bar`);
+          const meta = $(`${domId}-meta`);
+          const speedEl = $(`${domId}-speed`);
+          const etaEl = $(`${domId}-eta`);
+          if (bar) bar.style.width = `${pct}%`;
+          if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(receivedBytes)} / ${formatBytes(totalBytes)}`;
+          if (speedEl) speedEl.textContent = formatSpeedWithMbps(speedBps);
+          if (etaEl) etaEl.textContent = formatEta(etaSec);
+        },
+      });
+
+      if (transfer.cancelled) return;
+      transfer.finalized = true;
+
+      const url = URL.createObjectURL(res.blob);
+      renderCompletedReceivedCard(transfer.element, {
+        fileName,
+        totalSize: res.receivedBytes || totalSize,
+        peerName,
+        verifiedChecksum: true,
+        blob: res.blob,
+        url,
+        transport: "lan-tcp",
+        lanes: 1,
+        avgSpeedBps: res.avgSpeedBps,
+      });
+
+      try {
+        connections[peerId]?.conn.send({
+          type: "transfer-ack",
+          transferId,
+          fileName,
+        });
+      } catch (_e) {}
+
+      sounds.play("complete");
+      showToast(
+        `Received "${fileName}" via LAN TCP Pipe (${formatSpeedWithMbps(res.avgSpeedBps)})`,
+        "success"
+      );
+      delete incomingTransfers[transferId];
+    } catch (err) {
+      if (!transfer.cancelled) {
+        console.error("LAN HTTP stream receive failed:", err);
+        const meta = $(`${domId}-meta`);
+        if (meta) meta.textContent = "LAN HTTP stream failed";
+        showToast(`Failed receiving "${fileName}" over LAN TCP pipe`, "error");
+      }
+      delete incomingTransfers[transferId];
+    }
+  }
+
   function handleFileMetadata(data, peerId) {
     const transferId = data.transferId;
     if (transferId === undefined || incomingTransfers[transferId]) return;
@@ -2673,81 +4046,99 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalChunks = Number(data.totalChunks || 0);
     const totalSize = Number(data.totalSize || 0);
 
-    // Security check: limit chunks & size against DoS
-    if (totalChunks > 250000 || totalSize > 64 * 1024 * 1024 * 1024) {
+    // Security check: limit chunks & size against DoS (supports up to 64GB at 64KB chunks)
+    if (totalChunks > 1200000 || totalSize > 64 * 1024 * 1024 * 1024) {
       showToast("Rejected file: Exceeds safe size threshold", "error");
       return;
     }
 
     const domId = `incoming-${transferId}`;
     const peerName = connections[peerId]?.name || "Peer";
+    const transport = data.transport || "peerjs";
+    const lanes = Number(data.lanes || 1);
 
-    let li = null;
-    if (receivedFiles) {
-      li = document.createElement("li");
-      li.id = domId;
-      li.className = "transfer-card";
+    const li = createIncomingCardUi(domId, fileName, peerName, transport, lanes, () => {
+      cancelIncomingTransfer(transferId, peerId, fileName);
+    });
 
-      li.innerHTML = `
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <i class="bi ${getFileIcon(fileName)} text-accent text-base flex-shrink-0"></i>
-            <span class="text-xs font-semibold text-white truncate max-w-[120px] min-[420px]:max-w-[160px] sm:max-w-[220px]">${escapeHtml(fileName)}</span>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="text-[10px] text-accent font-medium truncate max-w-[80px] min-[420px]:max-w-[120px] sm:max-w-none">← ${escapeHtml(peerName)}</span>
-            <button class="icon-btn text-text/40 hover:text-red-400 cancel-receive-btn" title="Cancel Receiving">
-              <i class="bi bi-x text-sm"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="progress-track">
-          <div id="${domId}-bar" class="progress-fill bg-accent" style="width: 0%"></div>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-[10px] text-text/50">
-          <span id="${domId}-meta">Receiving file...</span>
-          <div class="flex items-center gap-2 font-mono">
-            <span id="${domId}-speed"></span>
-            <span id="${domId}-eta" class="text-text/40"></span>
-          </div>
-        </div>
-      `;
-
-      li.querySelector(".cancel-receive-btn")?.addEventListener("click", () => {
-        cancelIncomingTransfer(transferId, peerId, fileName);
-      });
-
-      receivedFiles.appendChild(li);
-      updateTransferVisibility();
-    }
-
-    incomingTransfers[transferId] = {
+    const transfer = {
       transferId,
       domId,
       peerId,
       fileName,
       totalSize,
       totalChunks,
+      transport,
+      lanes,
       mimeType: data.mimeType || "application/octet-stream",
-      checksum: data.checksum,
+      checksum: data.checksum !== undefined ? data.checksum : null,
+      checksumDeferred: Boolean(data.checksumDeferred),
+      completeReceived: false,
+      deferredTimer: null,
       chunks: totalChunks > 0 ? new Array(totalChunks) : [],
       receivedChunks: 0,
       receivedBytes: 0,
       element: li,
       startTime: Date.now(),
+      lastUiMs: 0,
       finalized: false,
       failed: false,
       cancelled: false,
     };
 
+    incomingTransfers[transferId] = transfer;
+
+    // Drain any turbo chunks that arrived a millisecond before file-metadata on parallel lanes!
+    const early = earlyChunkBuffers.get(transferId);
+    if (early) {
+      clearTimeout(early.timer);
+      earlyChunkBuffers.delete(transferId);
+      for (const item of early.chunks) {
+        applyChunkToTransfer(transfer, item.chunkIndex, item.payload);
+      }
+    }
+
     if (totalSize === 0 && totalChunks === 0) {
-      finalizeIncomingTransfer(incomingTransfers[transferId]);
+      finalizeIncomingTransfer(transfer);
     }
   }
 
-  function handleRawTransferChunk(data, _peerId) {
+  function handleTurboRawChunk(frame, _peerId) {
+    if (!frame || frame.kind !== "chunk") return;
+    const { transferId, chunkIndex, payload } = frame;
+    const transfer = incomingTransfers[transferId];
+
+    if (!transfer) {
+      // Buffer early chunks briefly in case a fast LAN lane beat control-channel file-metadata!
+      let entry = earlyChunkBuffers.get(transferId);
+      if (!entry) {
+        entry = {
+          chunks: [],
+          timer: setTimeout(() => earlyChunkBuffers.delete(transferId), 30_000),
+        };
+        earlyChunkBuffers.set(transferId, entry);
+      }
+      if (entry.chunks.length < 4096) {
+        entry.chunks.push({ chunkIndex, payload });
+      }
+      return;
+    }
+
+    if (transfer.finalized || transfer.failed || transfer.cancelled) return;
+    applyChunkToTransfer(transfer, chunkIndex, payload);
+  }
+
+  function handleRawTransferChunk(data, peerId) {
+    // 1. Check if this is an LST2 Direct LAN Turbo frame (e.g. sent via mid-transfer fallback!)
+    if (LanTurbo) {
+      const turboFrame = LanTurbo.decodeFrameHeader(data);
+      if (turboFrame && turboFrame.kind === "chunk") {
+        handleTurboRawChunk(turboFrame, peerId);
+        return;
+      }
+    }
+
+    // 2. Legacy 8-byte PeerJS header compatibility
     const u8 = lsToUint8Array(data);
     if (u8.byteLength < 8) return;
 
@@ -2758,7 +4149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const transfer = incomingTransfers[transferId];
     if (!transfer || transfer.finalized || transfer.failed || transfer.cancelled) return;
 
-    const payload = u8.slice(8);
+    const payload = new Uint8Array(u8.buffer, u8.byteOffset + 8, u8.byteLength - 8);
     applyChunkToTransfer(transfer, chunkIndex, payload);
   }
 
@@ -2779,31 +4170,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
     transfer.receivedBytes += payload.byteLength;
 
-    const pct = transfer.totalSize ? (transfer.receivedBytes / transfer.totalSize) * 100 : 0;
-    const elapsed = (Date.now() - transfer.startTime) / 1000;
-    const speed = transfer.receivedBytes / Math.max(elapsed, 0.001);
-    const remainingBytes = transfer.totalSize - transfer.receivedBytes;
-    const eta = speed > 0 ? remainingBytes / speed : 0;
-
-    const bar = $(`${transfer.domId}-bar`);
-    const meta = $(`${transfer.domId}-meta`);
-    const speedEl = $(`${transfer.domId}-speed`);
-    const etaEl = $(`${transfer.domId}-eta`);
-
-    if (bar) bar.style.width = `${pct}%`;
-    if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(transfer.receivedBytes)} / ${formatBytes(transfer.totalSize)}`;
-    if (speedEl) speedEl.textContent = formatSpeed(speed);
-    if (etaEl) etaEl.textContent = formatEta(eta);
-
     const isDone = transfer.totalChunks > 0 && transfer.receivedChunks >= transfer.totalChunks;
-    if (isDone) {
-      finalizeIncomingTransfer(transfer);
+    const now = Date.now();
+
+    // Throttle DOM updates to ~80ms so main thread stays buttery smooth at 100+ MB/s (1,600+ chunks/s)!
+    if (isDone || now - transfer.lastUiMs >= 80) {
+      transfer.lastUiMs = now;
+      const pct = transfer.totalSize ? (transfer.receivedBytes / transfer.totalSize) * 100 : 0;
+      const elapsed = (now - transfer.startTime) / 1000;
+      const speed = transfer.receivedBytes / Math.max(elapsed, 0.001);
+      const remainingBytes = Math.max(0, transfer.totalSize - transfer.receivedBytes);
+      const eta = speed > 0 ? remainingBytes / speed : 0;
+
+      const bar = $(`${transfer.domId}-bar`);
+      const meta = $(`${transfer.domId}-meta`);
+      const speedEl = $(`${transfer.domId}-speed`);
+      const etaEl = $(`${transfer.domId}-eta`);
+
+      if (bar) bar.style.width = `${Math.min(100, pct)}%`;
+      if (meta) meta.textContent = `${Math.round(pct)}% • ${formatBytes(transfer.receivedBytes)} / ${formatBytes(transfer.totalSize)}`;
+      if (speedEl) speedEl.textContent = formatSpeedWithMbps(speed);
+      if (etaEl) etaEl.textContent = formatEta(eta);
     }
+
+    if (isDone) {
+      tryFinalizeIncomingTransfer(transfer);
+    }
+  }
+
+  function tryFinalizeIncomingTransfer(transfer) {
+    if (!transfer || transfer.finalized || transfer.failed || transfer.cancelled) return;
+    const allChunksPresent =
+      transfer.totalChunks === 0 || transfer.receivedChunks >= transfer.totalChunks;
+    if (!allChunksPresent) return;
+
+    // If checksum arrives in transfer-complete over control channel, wait briefly for it before finalizing!
+    if (transfer.checksumDeferred && !transfer.completeReceived) {
+      if (!transfer.deferredTimer) {
+        transfer.deferredTimer = setTimeout(() => {
+          transfer.deferredTimer = null;
+          transfer.checksumDeferred = false;
+          tryFinalizeIncomingTransfer(transfer);
+        }, 4000);
+      }
+      return;
+    }
+
+    if (transfer.deferredTimer) {
+      clearTimeout(transfer.deferredTimer);
+      transfer.deferredTimer = null;
+    }
+    finalizeIncomingTransfer(transfer);
   }
 
   function finalizeIncomingTransfer(transfer) {
     if (!transfer || transfer.finalized || transfer.failed || transfer.cancelled) return;
     transfer.finalized = true;
+
+    const elapsedSec = Math.max((Date.now() - transfer.startTime) / 1000, 0.001);
+    const avgSpeedBps = transfer.totalSize / elapsedSec;
 
     // 1. Verify integrity & checksum
     let verifiedChecksum = false;
@@ -2835,48 +4260,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const blob = new Blob(transfer.chunks, { type: safeMime });
+    transfer.chunks = null; // Release chunk array references promptly
     const url = URL.createObjectURL(blob);
 
-    const safeName = escapeHtml(transfer.fileName);
-    const peerName = escapeHtml(connections[transfer.peerId]?.name || "Peer");
-
-    if (transfer.element) {
-      transfer.element.innerHTML = `
-        <div class="flex items-center justify-between gap-3 py-1">
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="w-10 h-10 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0 text-accent">
-              <i class="bi ${getFileIcon(transfer.fileName)} text-lg"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-xs font-bold text-white truncate">${safeName}</p>
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[10px] text-text/50">
-                <span class="font-mono">${formatBytes(transfer.totalSize)}</span>
-                <span>•</span>
-                <span>From ${peerName}</span>
-                <span>•</span>
-                <span class="text-accent flex items-center gap-0.5">
-                  <i class="bi bi-shield-check"></i> ${verifiedChecksum ? "Verified" : "Saved"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <button class="icon-btn text-text/60 hover:text-primary preview-file-btn" title="Preview file">
-              <i class="bi bi-eye text-xs"></i>
-            </button>
-            <a href="${url}" download="${safeName}" class="btn-primary-sm text-xs py-1.5 px-3 flex items-center gap-1.5" title="Download to device">
-              <i class="bi bi-download"></i><span class="hidden sm:inline">Save</span>
-            </a>
-          </div>
-        </div>
-      `;
-
-      // Wire Preview button
-      transfer.element.querySelector(".preview-file-btn")?.addEventListener("click", () => {
-        openFilePreviewModal(transfer.fileName, blob, url);
-      });
-    }
+    const peerName = connections[transfer.peerId]?.name || "Peer";
+    renderCompletedReceivedCard(transfer.element, {
+      fileName: transfer.fileName,
+      totalSize: transfer.totalSize,
+      peerName,
+      verifiedChecksum,
+      blob,
+      url,
+      transport: transfer.transport,
+      lanes: transfer.lanes,
+      avgSpeedBps: transfer.totalSize > 0 ? avgSpeedBps : 0,
+    });
 
     // Send ACK to sender
     try {
@@ -2888,14 +4286,19 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (_e) {}
 
     sounds.play("complete");
-    showToast(`Received "${transfer.fileName}" (${formatBytes(transfer.totalSize)})`, "success");
+    const speedNote = transfer.totalSize > 0 ? ` at ${formatSpeedWithMbps(avgSpeedBps)}` : "";
+    showToast(`Received "${transfer.fileName}" (${formatBytes(transfer.totalSize)}${speedNote})`, "success");
     delete incomingTransfers[transfer.transferId];
   }
 
-  function handleTransferCancelMessage(data, peerId) {
+  function handleTransferCancelMessage(data, _peerId) {
     const transfer = incomingTransfers[data.transferId];
     if (transfer) {
       transfer.cancelled = true;
+      if (transfer.deferredTimer) clearTimeout(transfer.deferredTimer);
+      if (typeof transfer.abortFn === "function") {
+        try { transfer.abortFn(); } catch (_e) {}
+      }
       if (transfer.element) {
         transfer.element.remove();
         updateTransferVisibility();
@@ -2905,14 +4308,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function handleTransferCompleteMessage(data, peerId) {
+  function handleTransferCompleteMessage(data, _peerId) {
     const transfer = incomingTransfers[data.transferId];
-    if (transfer && !transfer.finalized) {
-      finalizeIncomingTransfer(transfer);
+    if (!transfer || transfer.finalized || transfer.cancelled) return;
+    transfer.completeReceived = true;
+    if (data.checksum !== undefined && data.checksum !== null) {
+      transfer.checksum = data.checksum;
     }
+    tryFinalizeIncomingTransfer(transfer);
   }
 
-  function handleTransferAckMessage(data, peerId) {
+  function handleTransferAckMessage(data, _peerId) {
     const el = document.getElementById(`transfer-${data.transferId}`);
     if (el) {
       const etaEl = el.querySelector(`#transfer-${data.transferId}-eta`);
@@ -2927,6 +4333,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const transfer = incomingTransfers[transferId];
     if (transfer) {
       transfer.cancelled = true;
+      if (transfer.deferredTimer) clearTimeout(transfer.deferredTimer);
+      if (typeof transfer.abortFn === "function") {
+        try { transfer.abortFn(); } catch (_e) {}
+      }
       try {
         connections[peerId]?.conn.send({ type: "transfer-cancel", transferId });
       } catch (_e) {}
@@ -3013,5 +4423,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Kickoff App Discovery
   // ═══════════════════════════════════════════
   updateChatPresence();
+  updateGlobalLanIndicators();
   initDiscovery();
 });
